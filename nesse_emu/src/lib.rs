@@ -74,7 +74,7 @@ impl Nes {
         total
     }
     pub fn display_registers(&self) -> String {
-        unimplemented!()
+        format!("{:?}", self.cpu.registers)
     }
     /// returns the value at memory\[pc++\]
     pub fn next_byte(&mut self) -> u8 {

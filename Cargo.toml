@@ -1,7 +1,5 @@
-[package]
-name = "nesse"
-version = "0.1.0"
-authors = ["Daniel Boyle <boylede+github@gmail.com>"]
-edition = "2018"
 
-[dependencies]
+[workspace]
+members = [
+    "nesse_emu",
+]
