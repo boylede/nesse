@@ -2,6 +2,10 @@ use std::collections::HashMap;
 
 #[cfg(test)]
 mod test;
+
+mod opcodes;
+
+pub use opcodes::jumptable::opcode_jumptable;
 /// an instance of an NES machine
 #[derive(Default)]
 pub struct Nes {
@@ -32,37 +36,45 @@ impl Nes {
     }
     /// steps into one instruction. returns the number of cycles consumed
     pub fn step(&mut self) -> usize {
+        println!("stepping");
         let opcode = self.next_byte();
-        let mut cycles = 0;
-        match opcode {
-            0xa9 => {
-                // LDA load accumulator
-                cycles += 2;
-                let pa = self.next_byte();
-                self.cpu.registers.a = pa;
-                self.cpu.registers.set_flags(pa);
-            }
-            0xaa => {
-                // TAX transfer acc to x
-                cycles += 2;
-                let pa = self.cpu.registers.a;
-                self.cpu.registers.x = pa;
-                self.cpu.registers.set_flags(pa);
-            }
-            0xe8 => {
-                // INX increment x
-                cycles += 2;
-                let x = self.cpu.registers.x.wrapping_add(1);
-                self.cpu.registers.x = x;
-                self.cpu.registers.set_flags(x);
-            }
-            0x00 => {
-                // no-op
-                self.cpu.registers.pc -= 1;
-            }
-            _ => panic!("operation not implemented: {:x}", opcode),
-        }
-        cycles
+        // let mut cycles = 0;
+        let instruction = unsafe {
+            // SAFETY: this is safe because we generate the jumptable
+            // with 256 entries, which covers all possible u8 indexes
+            opcode_jumptable.get_unchecked(opcode as usize)
+        };
+        instruction.run(self);
+        instruction.cycles as usize
+        // match opcode {
+        //     0xa9 => {
+        //         // LDA load accumulator
+        //         cycles += 2;
+        //         let pa = self.next_byte();
+        //         self.cpu.registers.a = pa;
+        //         self.cpu.registers.set_flags(pa);
+        //     }
+        //     0xaa => {
+        //         // TAX transfer acc to x
+        //         cycles += 2;
+        //         let pa = self.cpu.registers.a;
+        //         self.cpu.registers.x = pa;
+        //         self.cpu.registers.set_flags(pa);
+        //     }
+        //     0xe8 => {
+        //         // INX increment x
+        //         cycles += 2;
+        //         let x = self.cpu.registers.x.wrapping_add(1);
+        //         self.cpu.registers.x = x;
+        //         self.cpu.registers.set_flags(x);
+        //     }
+        //     0x00 => {
+        //         // no-op
+        //         self.cpu.registers.pc -= 1;
+        //     }
+        //     _ => panic!("operation not implemented: {:x}", opcode),
+        // }
+        // cycles
     }
     pub fn run_until_nop(&mut self) -> usize {
         let mut last = self.step();
@@ -153,6 +165,12 @@ const FLAG_ZERO: u8 = 1 << 2;
 const FLAG_NEGATIVE: u8 = 1 << 7;
 
 impl NesRegisters {
+    pub fn status_zero(&self) -> bool {
+        self.p & FLAG_ZERO == FLAG_ZERO
+    }
+    pub fn status_negative(&self) -> bool {
+        self.p & FLAG_NEGATIVE == FLAG_NEGATIVE
+    }
     pub fn with_a(mut self, value: u8) -> Self {
         self.a = value;
         self
