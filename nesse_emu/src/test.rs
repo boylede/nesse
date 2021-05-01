@@ -16,13 +16,13 @@ fn test_0xa9_lda_immidiate_load_data() {
 #[test]
 fn test_0xa9_lda_zero_flag() {
     let mut nes = Nes::default();
+    nes.inject_registers(NesRegisters::default().with_flags_from(-2i8 as u8));
     nes.inject_operation("a9 00 00");
     nes.step();
     let regs = nes.dump_registers();
-    let mut expected = NesRegisters::default();
-    expected.set_flags(0);
-    println!("result: {:?}\n{:?}", regs, expected);
-    assert!(regs.p & 0b10 == expected.p & 0b10);
+    let expected = NesRegisters::default().with_flags_from(-2i8 as u8).with_flags_from(0).with_pc(1);
+    println!("result: {:?}\nexpect: {:?}", regs, expected);
+    assert!(regs.status_zero() == expected.status_zero());
 }
 
 #[test]
