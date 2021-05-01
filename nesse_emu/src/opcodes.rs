@@ -1,7 +1,4 @@
 use crate::Nes;
-use nesse_common::{
-    AddressingMode, CompactOpcode, CyclesCost, NesMetaOpcode, NesOpcode, StatusFlags, StatusOption,
-};
 
 // generated in nesse_codegen
 pub mod jumptable;
