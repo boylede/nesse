@@ -231,6 +231,9 @@ name = "nesse_codegen"
 version = "0.1.0"
 dependencies = [
  "codegen",
+ "nesse_common",
+ "proc-macro2 1.0.26",
+ "quote 1.0.9",
  "ron",
  "select",
  "serde",
@@ -238,12 +241,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nesse_common"
+version = "0.1.0"
+
+[[package]]
 name = "nesse_emu"
 version = "0.1.0"
 dependencies = [
  "heapless",
  "nesse_codegen",
+ "nesse_common",
+ "nesse_macros",
 ]
+
+[[package]]
+name = "nesse_macros"
+version = "0.1.0"
 
 [[package]]
 name = "new_debug_unreachable"

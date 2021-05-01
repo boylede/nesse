@@ -6,101 +6,131 @@ use std::io::{BufRead, BufReader, Cursor, Seek, SeekFrom, Write};
 
 use select::document::Document;
 use select::node::Node;
-use select::predicate::{Name, Predicate, Text, Element};
+use select::predicate::{Element, Name, Predicate, Text};
 
-use serde::{Deserialize, Serialize};
+use nesse_common::{
+    AddressingMode, CyclesCost, NesMetaOpcode, NesOpcode, StatusFlags, StatusOption,
+};
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::{quote, ToTokens};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NesMetaOpcode {
-    name: String,
-    description: String,
-    status: StatusFlags,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NesOpcode {
-    meta: NesMetaOpcode,
-    addressing: AddressingMode,
-    opcode: u8,
-    bytes: u8,
-    cycles: CyclesCost,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum AddressingMode {
-    Implicit,
-    Accumulator,
-    Immediate,
-    ZeroPage,
-    ZeroPageX,
-    ZeroPageY,
-    Relative,
-    Absolute,
-    AbsoluteX,
-    AbsoluteY,
-    Indirect,
-    IndexedIndirect,
-    IndirectIndexed,
-}
-
-impl AddressingMode {
-    pub fn from_str(str: &str) -> AddressingMode {
-        use AddressingMode::*;
-        let st = str.to_string();
-        let stripped: String = st.split_whitespace().collect();
-        match stripped.as_str() {
-            "Implied" => Implicit,
-            "Accumulator" => Accumulator,
-            "Immediate" => Immediate,
-            "ZeroPage" => ZeroPage,
-            "ZeroPage,X" => ZeroPageX,
-            "ZeroPage,Y" => ZeroPageY,
-            "Relative" => Relative,
-            "Absolute" => Absolute,
-            "Absolute,X" => AbsoluteX,
-            "Absolute,Y" => AbsoluteY,
-            "Indirect" => Indirect,
-            "(Indirect,X)" => IndexedIndirect,
-            "(Indirect),Y" => IndirectIndexed,
-            _ => panic!("not found {}", str),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum StatusOption {
-    Conditional,
-    NotAffected,
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum CyclesCost {
-    Always(u8),
-    PageDependant(u8),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StatusFlags {
-    carry: StatusOption,
-    zero: StatusOption,
-    interupt_disable: StatusOption,
-    decimal: StatusOption,
-    break_command: StatusOption,
-    overflow: StatusOption,
-    negative: StatusOption,
-}
-
-fn main() {
+pub fn generate_opcode_list() -> Vec<NesOpcode> {
     let basic_reference = Document::from(include_str!("..\\reference\\6502 Reference.html"));
     let mut opcodes: Vec<NesOpcode> = vec![];
     for section in basic_reference.find(Name("div")) {
         let mut opcode = read_opcode_definition(section);
         opcodes.append(&mut opcode);
     }
-    // println!("found {} opcodes", opcodes.len());
 
-    let config = ron::ser::PrettyConfig::new();
-    println!("{}", ron::ser::to_string_pretty(&opcodes, config).unwrap());
+    opcodes
 }
+
+struct JumpListEntryGenerator {
+    index: u8,
+    ident: Ident,
+    addresssing: u8,
+    cycles: u8,
+    bytes: u8,
+}
+
+impl ToTokens for JumpListEntryGenerator {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let ident = self.ident.clone();
+        let addressing = self.addresssing;
+        let cycles = self.cycles;
+        let bytes = self.bytes;
+        let toks = quote!(exec:#ident, addressing:#addressing, cycles:#cycles, bytes:#bytes);
+        tokens.extend(toks);
+    }
+}
+
+fn generate_opcode_stub(name: String) -> TokenStream {
+    let ident = Ident::new(&name, Span::call_site());
+    quote! {
+        pub fn #ident(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) {
+            println!("{} unimplemented", #name);
+            unimplemented!()
+        }
+    }
+}
+pub fn generate_stub_opcode_implementations(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
+    let mut opcode_names: Vec<String> = known_opcodes
+        .iter()
+        .map(|oc| oc.meta.name.to_string().to_ascii_lowercase())
+        .collect();
+    opcode_names.sort_unstable();
+    opcode_names.dedup();
+    // let names: Vec<Ident> = opcode_names
+    //     .iter()
+    //     .map(|name| Ident::new(name, Span::call_site()))
+    //     .collect();
+    let stubs: TokenStream = opcode_names
+        .into_iter()
+        .map(|name| generate_opcode_stub(name))
+        .collect();
+    quote! {
+        use crate::Nes;
+        #stubs
+    }
+}
+pub fn generate_jumplist(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
+    let mut opcodes: Vec<JumpListEntryGenerator> = vec![];
+    for opcode_number in 0i32..256 {
+        if let Some(opcode) = known_opcodes
+            .iter()
+            .find(|op| op.opcode == opcode_number as u8)
+        {
+            let ident = Ident::new(&opcode.meta.name.to_ascii_lowercase(), Span::call_site());
+            let jle = JumpListEntryGenerator {
+                index: opcode_number as u8,
+                ident,
+                addresssing: opcode.addressing.to_u8(),
+                cycles: opcode.cycles.to_u8(),
+                bytes: opcode.bytes,
+            };
+            opcodes.push(jle);
+        } else {
+            let jle = JumpListEntryGenerator {
+                index: opcode_number as u8,
+                ident: Ident::new("placeholder", Span::call_site()),
+                addresssing: 0,
+                cycles: 0,
+                bytes: 0,
+            };
+            opcodes.push(jle);
+        }
+    }
+    // we want to output code that looks like this:
+    let template: TokenStream = quote! {
+            use crate::Nes;
+            use crate::opcodes::*;
+            pub type OpcodeFn = fn(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8);
+            pub struct Opcode {
+                pub exec: OpcodeFn,
+                pub addressing: u8,
+                pub cycles: u8,
+                pub bytes: u8,
+            }
+
+            impl Opcode {
+                #[inline(always)]
+                pub fn run(&self, nes: &mut Nes) {
+                    (self.exec)(nes, self.addressing, self.cycles, self.bytes)
+                }
+            }
+            pub const opcode_jumptable: [Opcode;256] = [
+                #(Opcode {#opcodes},)*
+            ];
+
+            pub fn placeholder(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) {
+                println!("opcode not implemented.");
+            }
+    };
+    template
+}
+
+// we need a function that generates code that looks like:
+// register_opcode!(number, IDENT, addressing, cycles, bytes);
 
 fn read_opcode_definition(section: Node) -> Vec<NesOpcode> {
     let header = section.find(Name("h3")).next().unwrap();
@@ -109,22 +139,7 @@ fn read_opcode_definition(section: Node) -> Vec<NesOpcode> {
     let description = children.next().unwrap().as_text().unwrap()[6..].to_string();
 
     let mut tables = section.find(Name("table"));
-    // let starting_point = header.index();
 
-    // let arithmatic_string = header.next().unwrap().next().unwrap();
-    // // println!("arithmatic: {:?}", arithmatic_string);
-    // let long_description = arithmatic_string.next().unwrap().next().unwrap();
-    // let psau = long_description.next().unwrap().next().unwrap();
-    // let (status_paragraph, opcode_paragraph) = if psau.children().next().unwrap().as_text() == Some("Processor Status after use:") {
-    //     println!("had arithmatic, psau = {:?}", psau);
-    //     let status_paragraph = psau.next().unwrap().next().unwrap();
-    //     let opcode_paragraph = status_paragraph.next().unwrap();
-    //     (status_paragraph, opcode_paragraph)
-    // } else {
-    //     println!("skipped arithmatic, psau = {:?}", psau);
-    //     let opcode_paragraph = psau.next().unwrap();
-    //     (psau, opcode_paragraph)
-    // };
     let status = read_status_definition(tables.next().unwrap());
     let opcode = NesMetaOpcode {
         name,
@@ -191,24 +206,34 @@ fn read_opcodes(paragraph: Node, metas: NesMetaOpcode) -> Vec<NesOpcode> {
                     .as_text()
                     .unwrap()[1..],
                 16,
-            ).unwrap();
+            )
+            .unwrap();
             // println!("op: {:?}", opcode);
-            
+
             let bytes_str: String = columns
-            .next()
-            .unwrap()
-            // .find(Name("center"))
-            // .next()
-            // .unwrap()
-            // .find(Text)
-            // .next()
-            // .unwrap()
-            .text().split_whitespace().collect();
+                .next()
+                .unwrap()
+                // .find(Name("center"))
+                // .next()
+                // .unwrap()
+                // .find(Text)
+                // .next()
+                // .unwrap()
+                .text()
+                .split_whitespace()
+                .collect();
             // println!("bytes_str: {}", bytes_str);
             let bytes = bytes_str.parse::<u8>().unwrap();
             // println!("by: {:?}", bytes);
 
-            let cycles_str = columns.next().unwrap().find(Text).next().unwrap().as_text().unwrap();
+            let cycles_str = columns
+                .next()
+                .unwrap()
+                .find(Text)
+                .next()
+                .unwrap()
+                .as_text()
+                .unwrap();
             let cycles = match cycles_str.parse::<u8>() {
                 Ok(n) => CyclesCost::Always(n),
                 Err(_) => {
@@ -220,7 +245,11 @@ fn read_opcodes(paragraph: Node, metas: NesMetaOpcode) -> Vec<NesOpcode> {
             // println!("cy: {:?}", cycles);
 
             NesOpcode {
-                meta, addressing, opcode, bytes, cycles
+                meta,
+                addressing,
+                opcode,
+                bytes,
+                cycles,
             }
         })
         .collect()
