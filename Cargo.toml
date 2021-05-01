@@ -3,4 +3,5 @@
 members = [
     "nesse_emu",
     "nesse_codegen",
+    "nesse_common",
 ]
