@@ -34,6 +34,9 @@ impl Nes {
     pub fn inject_registers(&mut self, regs: NesRegisters) {
         self.cpu.registers = regs;
     }
+    fn get_address_from_mode(&mut self, mode: u8) -> u16 {
+        self.ram.get_address_from_mode(mode, &mut self.cpu.registers)
+    }
     /// steps into one instruction. returns the number of cycles consumed
     pub fn step(&mut self) -> usize {
         println!("stepping");
@@ -46,40 +49,12 @@ impl Nes {
         };
         instruction.run(self);
         instruction.cycles as usize
-        // match opcode {
-        //     0xa9 => {
-        //         // LDA load accumulator
-        //         cycles += 2;
-        //         let pa = self.next_byte();
-        //         self.cpu.registers.a = pa;
-        //         self.cpu.registers.set_flags(pa);
-        //     }
-        //     0xaa => {
-        //         // TAX transfer acc to x
-        //         cycles += 2;
-        //         let pa = self.cpu.registers.a;
-        //         self.cpu.registers.x = pa;
-        //         self.cpu.registers.set_flags(pa);
-        //     }
-        //     0xe8 => {
-        //         // INX increment x
-        //         cycles += 2;
-        //         let x = self.cpu.registers.x.wrapping_add(1);
-        //         self.cpu.registers.x = x;
-        //         self.cpu.registers.set_flags(x);
-        //     }
-        //     0x00 => {
-        //         // no-op
-        //         self.cpu.registers.pc -= 1;
-        //     }
-        //     _ => panic!("operation not implemented: {:x}", opcode),
-        // }
-        // cycles
     }
     pub fn run_until_nop(&mut self) -> usize {
         let mut last = self.step();
         let mut total = last;
-        while last != 0 {
+        self.cpu.running = true;
+        while self.cpu.running {
             last = self.step();
             total += last;
         }
@@ -93,6 +68,9 @@ impl Nes {
         let value = self.ram.get(self.cpu.registers.pc);
         self.cpu.registers.pc += 1;
         value
+    }
+    pub fn insert_cartridge(&mut self, cart: NesCart) {
+        unimplemented!()
     }
 }
 
@@ -143,6 +121,7 @@ impl CartridgeRom {
 /// NES cpu instance
 #[derive(Default, Clone)]
 pub struct Nes2a03 {
+    running: bool,
     registers: NesRegisters,
 }
 #[derive(Default, Clone, PartialEq, Eq, Debug)]
@@ -161,7 +140,13 @@ pub struct NesRegisters {
     p: u8,
 }
 
-const FLAG_ZERO: u8 = 1 << 2;
+const FLAG_CARRY: u8 = 1 << 0;
+const FLAG_ZERO: u8 = 1 << 1;
+const FLAG_INTERRUPT: u8 = 1 << 2;
+const FLAG_DECIMAL: u8 = 1 << 3;
+const FLAG_BL: u8 = 1 << 4; // B LOW BIT
+const FLAG_BH: u8 = 1 << 5; // B HIGH BIT
+const FLAG_OVERFLOW: u8 = 1 << 6;
 const FLAG_NEGATIVE: u8 = 1 << 7;
 
 impl NesRegisters {
@@ -199,6 +184,21 @@ impl NesRegisters {
             self.p &= !FLAG_NEGATIVE;
         }
     }
+    pub fn set_carry(&mut self) {
+        self.p |= FLAG_CARRY;
+    }
+    pub fn clear_carry(&mut self) {
+        self.p &= !FLAG_CARRY;
+    }
+    pub fn set_overflow(&mut self) {
+        self.p |= FLAG_OVERFLOW;
+    }
+    pub fn clear_overflow(&mut self) {
+        self.p &= !FLAG_OVERFLOW;
+    }
+    pub fn get_carry(&self) -> u8{
+        self.p & FLAG_CARRY
+    }
     pub fn set_a(&mut self, value: u8) {
         self.a = value;
     }
@@ -207,6 +207,8 @@ impl NesRegisters {
 #[derive(Default)]
 pub struct Nes2c02;
 
+/// this will manage all memory accesses, including ones which do not go to the onboard ram chip
+/// todo: may reorganize to make more sense
 pub struct NesRam {
     inner: [u8; 2048],
     rom: CartridgeRom,
@@ -223,6 +225,73 @@ impl Default for NesRam {
 }
 
 impl NesRam {
+    pub fn get_address_from_mode(&self, mode: u8, registers: &mut NesRegisters) -> u16 {
+        match mode {
+            0 => {
+                // Implicit
+                panic!("Should not request a get with implicit address mode.");
+            }
+            1 => {
+                // Accumulator
+                panic!("Should not request a get with accumulator address mode.");
+            }
+            2 => {
+                // Immediate
+                let value = registers.pc;
+                registers.pc += 1;
+                value
+            }
+            3 => {
+                // ZeroPage
+                self.get(registers.pc) as u16
+            }
+            4 => {
+                // ZeroPageX
+                let base = self.get(registers.pc);
+                registers.pc += 1;
+                // todo: is this behavior correct? will wrap around zero page
+                base.wrapping_add(registers.x) as u16
+            }
+            5 => {
+                // ZeroPageY
+                let base = self.get(registers.pc);
+                registers.pc += 1;
+                // todo: is this wrap intended before the cast to u16 or after
+                base.wrapping_add(base) as u16
+            }
+            6 => {
+                // Relative
+                unimplemented!()
+            }
+            7 => {
+                // Absolute
+                unimplemented!()
+            }
+            8 => {
+                // AbsoluteX
+                unimplemented!()
+            }
+            9 => {
+                // AbsoluteY
+                unimplemented!()
+            }
+            10 => {
+                // Indirect
+                unimplemented!()
+            }
+            11 => {
+                // IndexedIndirect
+                unimplemented!()
+            }
+            12 => {
+                // IndirectIndexed
+                unimplemented!()
+            }
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
     pub fn load_cartridge(&mut self, cartridge: NesCart) {
         unimplemented!()
     }
