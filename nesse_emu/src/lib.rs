@@ -5,7 +5,18 @@ mod test;
 
 mod opcodes;
 
+pub mod prelude {
+    // todo: select useful items to include in prelude
+    pub use crate::*;
+}
+
 pub use opcodes::jumptable::opcode_jumptable;
+
+/// allows a function to be called by an instance of the NES at each tick
+pub trait NesPeripheral {
+    fn tick(&mut self, nes: &mut Nes);
+}
+
 /// an instance of an NES machine
 #[derive(Default)]
 pub struct Nes {
@@ -15,9 +26,29 @@ pub struct Nes {
     apu: Nes2a03Audio,
     cartridge: Option<NesCart>,
     gamepads: [Option<NesGamepad>; 8],
+    peripherals: Option<Vec<Box<dyn NesPeripheral>>>,
 }
 
 impl Nes {
+    pub fn extract_memory(&self, address: u16) -> u8 {
+        self.ram.get(address)
+    }
+    pub fn with_initial_memory(mut self, address: u16, memory: &[u8]) -> Nes {
+        self.ram.set_region(address, memory);
+        self
+    }
+    pub fn with_peripheral(mut self, p: Box<dyn NesPeripheral>) -> Nes {
+        self.add_peripheral(p);
+        self
+    }
+    pub fn add_peripheral(&mut self, p: Box<dyn NesPeripheral>) {
+        if let Some(ref mut v) = self.peripherals {
+            v.push(p);
+        } else {
+            self.peripherals = Some(vec![p]);
+        }
+        
+    }
     /// debug function to insert arbitrary bytes at current PC in memory, overwriting anything already present
     pub fn inject_operation(&mut self, op: &str) {
         op.split(' ')
@@ -30,6 +61,9 @@ impl Nes {
     }
     pub fn dump_registers(&self) -> NesRegisters {
         self.cpu.registers.clone()
+    }
+    pub fn inject_memory_value(&mut self, address: u16, value: u8) {
+        self.ram.set(address, value);
     }
     pub fn inject_registers(&mut self, regs: NesRegisters) {
         self.cpu.registers = regs;
@@ -48,6 +82,15 @@ impl Nes {
             opcode_jumptable.get_unchecked(opcode as usize)
         };
         instruction.run(self);
+        // todo: with the way we're doing this we can remove the cycles
+        // from the instruction fn signature argument list
+        // and not have that function return any values
+        
+        if let Some(mut peripherals) = self.peripherals.take() {
+            for p in peripherals.iter_mut() {
+                p.tick(self);
+            }
+        }
         instruction.cycles as usize
     }
     pub fn run_until_nop(&mut self) -> usize {
@@ -225,6 +268,11 @@ impl Default for NesRam {
 }
 
 impl NesRam {
+    pub fn set_region(&mut self, start: u16, bytes: &[u8]) {
+        for (offset, value) in bytes.iter().enumerate() {
+            self.set(start + offset as u16, *value);
+        }
+    }
     pub fn get_address_from_mode(&self, mode: u8, registers: &mut NesRegisters) -> u16 {
         match mode {
             0 => {
