@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::collections::HashMap;
 
 #[cfg(test)]
@@ -12,17 +13,18 @@ pub mod prelude {
 
 pub use opcodes::jumptable::opcode_jumptable;
 
+// the value loaded into pc is stored in this location
+const INITIAL_PC_LOCATION: u16 = 0xfffc;
+// A value added to the SP on every stack operation
+const STACK_OFFSET: u16 = 1 << 8;
+/// The value of the stack pointer on reset
+const STACK_INITIAL: u8 = 0xFD;
+
 /// allows a function to be called by an instance of the NES at each tick
 pub trait NesPeripheral {
-    fn init(&mut self, nes: &mut Nes) {
-
-    }
-    fn tick(&mut self, nes: &mut Nes) {
-
-    }
-    fn cleanup(&mut self, nes: &mut Nes) {
-
-    }
+    fn init(&mut self, nes: &mut Nes) {}
+    fn tick(&mut self, nes: &mut Nes) {}
+    fn cleanup(&mut self, nes: &mut Nes) {}
 }
 
 /// an instance of an NES machine
@@ -45,7 +47,6 @@ impl Nes {
             }
             self.peripherals.replace(peripherals);
         }
-        
     }
     pub fn cleanup(&mut self) {
         if let Some(mut peripherals) = self.peripherals.take() {
@@ -64,6 +65,9 @@ impl Nes {
     pub fn with_peripheral(mut self, p: Box<dyn NesPeripheral>) -> Nes {
         self.add_peripheral(p);
         self
+    }
+    pub fn set_pc(&mut self, value: u16) {
+        self.cpu.registers.pc = value;
     }
     pub fn add_peripheral(&mut self, p: Box<dyn NesPeripheral>) {
         if let Some(ref mut v) = self.peripherals {
@@ -91,6 +95,17 @@ impl Nes {
     pub fn inject_registers(&mut self, regs: NesRegisters) {
         self.cpu.registers = regs;
     }
+    pub fn dump_stack(&self) -> String {
+        let sp = self.cpu.registers.sp as u16 + STACK_OFFSET;
+        let mut depth = self.ram.debug_stack_depth;
+        let mut stack = format!{"{}: ", depth};
+        while depth > 0 {
+            let value = self.ram.get(sp + depth);
+            write!(stack, "{:x} / ", value).unwrap();
+            depth -= 1;
+        }
+        stack
+    }
     fn get_address_from_mode(&mut self, mode: u8) -> u16 {
         self.ram
             .get_address_from_mode(mode, &mut self.cpu.registers)
@@ -98,7 +113,8 @@ impl Nes {
     /// steps into one instruction. returns the number of cycles consumed
     pub fn step(&mut self) -> usize {
         // println!("stepping");
-        let opcode = self.next_byte();
+        let opcode = self.peek_pc();
+        self.cpu.registers.pc += 1;
         // let mut cycles = 0;
         let instruction = unsafe {
             // SAFETY: this is safe because we generate the jumptable
@@ -132,9 +148,9 @@ impl Nes {
         format!("{:?}", self.cpu.registers)
     }
     /// returns the value at memory\[pc++\]
-    pub fn next_byte(&mut self) -> u8 {
+    pub fn peek_pc(&mut self) -> u8 {
         let value = self.ram.get(self.cpu.registers.pc);
-        self.cpu.registers.pc += 1;
+        
         value
     }
     pub fn insert_cartridge(&mut self, cart: NesCart) {
@@ -164,7 +180,7 @@ impl CartridgeRom {
         // todo: bounds checks
         // todo: hardware mapping redirect
         if index < 0x2000 {
-            unimplemented!()
+            unimplemented!() // should be the cpu's ram
         } else if index < 0x4020 {
             // other hardware
             unimplemented!()
@@ -192,6 +208,9 @@ pub struct Nes2a03 {
     running: bool,
     registers: NesRegisters,
 }
+
+
+
 #[derive(Default, Clone, PartialEq, Eq, Debug)]
 pub struct NesRegisters {
     /// program counter
@@ -206,6 +225,8 @@ pub struct NesRegisters {
     y: u8,
     /// processor status
     p: u8,
+    // debug counter for stack pushes
+    // debug_stack_depth: u16,
 }
 
 const FLAG_CARRY: u8 = 1 << 0;
@@ -218,6 +239,15 @@ const FLAG_OVERFLOW: u8 = 1 << 6;
 const FLAG_NEGATIVE: u8 = 1 << 7;
 
 impl NesRegisters {
+    pub fn reset(&mut self) {
+        self.a = 0;
+        self.x = 0;
+        self.y = 0;
+        self.sp = STACK_INITIAL;
+        // self.debug_stack_depth = 0;
+        self.p = 0b100100; 
+        // self.pc = todo: figure out how i want to handle multiple options here
+    }
     pub fn status_zero(&self) -> bool {
         self.p & FLAG_ZERO == FLAG_ZERO
     }
@@ -237,8 +267,11 @@ impl NesRegisters {
         self
     }
     pub fn with_pc(mut self, value: u16) -> Self {
-        self.pc = value;
+        self.set_pc(value);
         self
+    }
+    pub fn set_pc(&mut self, value: u16) {
+        self.pc = value;
     }
     pub fn set_flags(&mut self, value: u8) {
         if value == 0 {
@@ -264,7 +297,7 @@ impl NesRegisters {
     pub fn clear_overflow(&mut self) {
         self.p &= !FLAG_OVERFLOW;
     }
-    pub fn get_carry(&self) -> u8{
+    pub fn get_carry(&self) -> u8 {
         self.p & FLAG_CARRY
     }
     pub fn set_a(&mut self, value: u8) {
@@ -280,6 +313,7 @@ pub struct Nes2c02;
 pub struct NesRam {
     inner: [u8; 2048],
     rom: CartridgeRom,
+    debug_stack_depth: u16,
 }
 
 /// todo: construct this more carefully
@@ -288,6 +322,7 @@ impl Default for NesRam {
         NesRam {
             inner: [0u8; 2048],
             rom: CartridgeRom::default(),
+            debug_stack_depth: 0,
         }
     }
 }
@@ -316,7 +351,9 @@ impl NesRam {
             }
             3 => {
                 // ZeroPage
-                self.get(registers.pc) as u16
+                let value = self.get(registers.pc) as u16;
+                registers.pc += 1;
+                value
             }
             4 => {
                 // ZeroPageX
@@ -330,11 +367,13 @@ impl NesRam {
                 let base = self.get(registers.pc);
                 registers.pc += 1;
                 // todo: is this wrap intended before the cast to u16 or after
-                base.wrapping_add(base) as u16
+                base.wrapping_add(registers.y) as u16
             }
             6 => {
                 // Relative
-                unimplemented!()
+                let base = self.get(registers.pc);
+                registers.pc += 1;
+                base as u16
             }
             7 => {
                 // Absolute
@@ -364,6 +403,27 @@ impl NesRam {
                 unimplemented!()
             }
         }
+    }
+    pub fn stack_push(&mut self, sp: &mut u8, value: u8) {
+        println!("pushing {:X} to stack", value);
+        self.set(*sp as u16 + STACK_OFFSET, value);
+        *sp = sp.wrapping_sub(1);
+        self.debug_stack_depth += 1;
+    }
+    pub fn stack_pop(&mut self, sp: &mut u8) -> u8 {
+        let value = self.get(*sp as u16 + STACK_OFFSET);
+        *sp = sp.wrapping_add(1);
+        self.debug_stack_depth -= 1;
+        value
+    }
+    pub fn stack_push_short(&mut self, sp: &mut u8, value: u16) {
+        self.stack_push(sp, (value & 0xff) as u8);
+        self.stack_push(sp, ((value >> 8) & 0xff) as u8);
+    }
+    pub fn stack_pop_short(&mut self, sp: &mut u8) -> u16 {
+        let low = self.stack_pop(sp) as u16;
+        let high = self.stack_pop(sp) as u16;
+        (high << 8) | low
     }
     pub fn load_cartridge(&mut self, cartridge: NesCart) {
         unimplemented!()
