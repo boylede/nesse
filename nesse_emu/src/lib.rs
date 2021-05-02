@@ -71,7 +71,6 @@ impl Nes {
         } else {
             self.peripherals = Some(vec![p]);
         }
-        
     }
     /// debug function to insert arbitrary bytes at current PC in memory, overwriting anything already present
     pub fn inject_operation(&mut self, op: &str) {
@@ -93,11 +92,12 @@ impl Nes {
         self.cpu.registers = regs;
     }
     fn get_address_from_mode(&mut self, mode: u8) -> u16 {
-        self.ram.get_address_from_mode(mode, &mut self.cpu.registers)
+        self.ram
+            .get_address_from_mode(mode, &mut self.cpu.registers)
     }
     /// steps into one instruction. returns the number of cycles consumed
     pub fn step(&mut self) -> usize {
-        println!("stepping");
+        // println!("stepping");
         let opcode = self.next_byte();
         // let mut cycles = 0;
         let instruction = unsafe {
@@ -109,11 +109,12 @@ impl Nes {
         // todo: with the way we're doing this we can remove the cycles
         // from the instruction fn signature argument list
         // and not have that function return any values
-        
+
         if let Some(mut peripherals) = self.peripherals.take() {
             for p in peripherals.iter_mut() {
                 p.tick(self);
             }
+            self.peripherals.replace(peripherals);
         }
         instruction.cycles as usize
     }

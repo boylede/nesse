@@ -1,7 +1,16 @@
-use crossterm::{Command, ExecutableCommand, QueueableCommand, Result, cursor, event::{self, Event, KeyCode, KeyEvent}, execute, queue, style::{self, Colorize}, terminal::{
-        self, enable_raw_mode, disable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen,
-    }};
-use std::io::{Stdout, Write, stdout};
+use crossterm::{
+    cursor,
+    event::{self, Event, KeyCode, KeyEvent},
+    execute, queue,
+    style::{self, Colorize},
+    terminal::{
+        self, disable_raw_mode, DisableLineWrap, EnableLineWrap, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
+        LeaveAlternateScreen, ScrollUp, ScrollDown, SetSize, size,
+    },
+    Command, ExecutableCommand, QueueableCommand, Result,
+};
+use rand::Rng;
+use std::io::{stdout, Stdout, Write};
 
 use nesse_emu::prelude::*;
 
