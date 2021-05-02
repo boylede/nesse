@@ -3,11 +3,54 @@ use crate::Nes;
 // generated in nesse_codegen
 pub mod jumptable;
 
-pub fn lda(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) {
-    // let addr = self.get_operand_address(&mode);
-    // let value = self.mem_read(addr);
-    // self.set_register_a(value);
-    println!("stub of lda");
+pub fn lda(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let address = nes.get_address_from_mode(addressing);
+    let value = nes.ram.get(address);
+    nes.cpu.registers.a = value;
+    nes.cpu.registers.set_flags(value);
+    cycles
+}
+
+pub fn tax(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let value = nes.cpu.registers.a;
+    nes.cpu.registers.x = value;
+    nes.cpu.registers.set_flags(value);
+    cycles
+}
+
+pub fn inx(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let value = nes.cpu.registers.x.wrapping_add(1);
+    nes.cpu.registers.x = value;
+    nes.cpu.registers.set_flags(value);
+    cycles
+}
+
+pub fn brk(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    nes.cpu.registers.pc -= 1;
+    nes.cpu.running = false;
+    cycles
+}
+
+pub fn adc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let carry = nes.cpu.registers.get_carry();
+    let address = nes.get_address_from_mode(addressing);
+    let input = nes.ram.get(address);
+    let value = input as u16 + nes.cpu.registers.a as u16 + carry as u16;
+    let low_value = (value & 0xff) as u8;
+    
+    nes.cpu.registers.set_flags(low_value);
+    if value > 0xff {
+        nes.cpu.registers.set_carry();
+    } else {
+        nes.cpu.registers.clear_carry();
+    }
+    if (input ^ low_value) & (low_value ^ nes.cpu.registers.a) & 0x80 != 0 {
+        nes.cpu.registers.set_overflow();
+    } else {
+        nes.cpu.registers.clear_overflow();
+    }
+    nes.cpu.registers.a = low_value;
+    cycles
 }
 
 // stub implementations provided by codegen crate:
