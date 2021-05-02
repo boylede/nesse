@@ -40,7 +40,14 @@ pub struct Nes {
 }
 
 impl Nes {
+    pub fn load_rom(&mut self, rom: &[u8]) {
+        unimplemented!()
+    }
     pub fn init(&mut self) {
+        self.cpu.registers.reset();
+        // todo: implement cartridge memory range
+        // self.set_pc(self.ram.get_short(INITIAL_PC_LOCATION));
+        self.set_pc(0x600);
         if let Some(mut peripherals) = self.peripherals.take() {
             for p in peripherals.iter_mut() {
                 p.init(self);
@@ -159,7 +166,16 @@ impl Nes {
 }
 
 #[derive(Default)]
-pub struct NesCart;
+pub struct NesCart {
+    memory: Vec<u8>,
+    memory_base: u16,
+}
+
+impl NesCart {
+    pub fn simple(start_addrss: u16, rom: &[u8]) -> NesCart {
+        unimplemented!()
+    }
+}
 #[derive(Default)]
 pub struct CartridgeRom {
     // todo: a better way to do this so that we don't have to store the whole address space but still don't have a constant size
