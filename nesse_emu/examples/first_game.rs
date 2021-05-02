@@ -4,8 +4,8 @@ use crossterm::{
     execute, queue,
     style::{self, Colorize},
     terminal::{
-        self, disable_raw_mode, DisableLineWrap, EnableLineWrap, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
-        LeaveAlternateScreen, ScrollUp, ScrollDown, SetSize, size,
+        self, disable_raw_mode, enable_raw_mode, size, Clear, ClearType, DisableLineWrap,
+        EnableLineWrap, EnterAlternateScreen, LeaveAlternateScreen, ScrollDown, ScrollUp, SetSize,
     },
     Command, ExecutableCommand, QueueableCommand, Result,
 };
@@ -38,14 +38,16 @@ const game_code: &[u8] = &[
 ];
 
 fn main() {
+    // let snake_cartridge = NesCart::simple(0x600, game_code);
     let mut nes = Nes::default()
         .with_peripheral(Box::new(RandomNumberGenerator(0xfe)))
         .with_peripheral(Box::new(KeyboardInput(0xff, 0x00)))
-        .with_peripheral(Box::new(SimpleScreen(0x200)))
+        .with_peripheral(Box::new(Spy))
+        // .with_peripheral(Box::new(SimpleScreen(0x200)))
         .with_peripheral(Box::new(RateLimiter))
         .with_peripheral(Box::new(PCPrinter))
-        .with_initial_memory(0, &game_code)
-        ;
+        .with_initial_memory(0x600, &game_code);
+    nes.set_pc(0x600);
     nes.init();
 
     nes.run_until_nop();
@@ -54,10 +56,20 @@ fn main() {
 
 pub struct RateLimiter;
 
-
 impl NesPeripheral for RateLimiter {
     fn tick(&mut self, nes: &mut Nes) {
-        ::std::thread::sleep(std::time::Duration::new(0, 100_000_000)); // 16_666_666
+        ::std::thread::sleep(std::time::Duration::new(0, 10_000_000)); // 16_666_666
+    }
+}
+
+pub struct Spy;
+
+impl NesPeripheral for Spy {
+    fn tick(&mut self, nes: &mut Nes) {
+        let next_opcode = nes.peek_pc();
+        let stack = nes.dump_stack();
+        print!("{:x} ## {:?} ",next_opcode, nes.dump_registers());
+        println!("{}",stack);
     }
 }
 
@@ -66,7 +78,7 @@ pub struct RandomNumberGenerator(u16);
 
 impl NesPeripheral for RandomNumberGenerator {
     fn tick(&mut self, nes: &mut Nes) {
-        let num:u8 = rand::thread_rng().gen_range(1,16);
+        let num: u8 = rand::thread_rng().gen_range(1, 16);
         nes.inject_memory_value(self.0, num);
     }
 }
@@ -83,8 +95,12 @@ pub struct PCPrinter;
 
 impl NesPeripheral for PCPrinter {
     fn cleanup(&mut self, nes: &mut Nes) {
-        let next_opcode = nes.next_byte();
-        println!("next opcode: {:x}", next_opcode);
+        let next_opcode = nes.peek_pc();
+        println!(
+            "next opcode: {:x} at location {:?}",
+            next_opcode,
+            nes.dump_registers()
+        );
     }
 }
 
@@ -93,7 +109,6 @@ pub struct SimpleScreen(u16);
 
 impl NesPeripheral for SimpleScreen {
     fn init(&mut self, nes: &mut Nes) {
-        
         let mut stdout = stdout();
         // stdout.execute(ScrollUp(3)).unwrap();
         execute!(stdout, EnterAlternateScreen).unwrap();
@@ -137,12 +152,9 @@ impl NesPeripheral for SimpleScreen {
     fn cleanup(&mut self, nes: &mut Nes) {
         let mut stdout = stdout();
         // stdout.execute(EnableLineWrap).unwrap();
-        
+
         disable_raw_mode().unwrap();
         execute!(stdout, LeaveAlternateScreen).unwrap();
         stdout.execute(cursor::Show).unwrap();
-        
-        
     }
 }
-
