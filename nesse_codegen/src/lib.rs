@@ -47,7 +47,7 @@ impl ToTokens for JumpListEntryGenerator {
 fn generate_opcode_stub(name: String) -> TokenStream {
     let ident = Ident::new(&name, Span::call_site());
     quote! {
-        pub fn #ident(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) {
+        pub fn #ident(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
             println!("{} unimplemented", #name);
             unimplemented!()
         }
@@ -104,7 +104,7 @@ pub fn generate_jumplist(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
     let template: TokenStream = quote! {
             use crate::Nes;
             use crate::opcodes::*;
-            pub type OpcodeFn = fn(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8);
+            pub type OpcodeFn = fn(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8;
             pub struct Opcode {
                 pub exec: OpcodeFn,
                 pub addressing: u8,
@@ -114,7 +114,7 @@ pub fn generate_jumplist(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
 
             impl Opcode {
                 #[inline(always)]
-                pub fn run(&self, nes: &mut Nes) {
+                pub fn run(&self, nes: &mut Nes) -> u8 {
                     (self.exec)(nes, self.addressing, self.cycles, self.bytes)
                 }
             }
@@ -122,8 +122,9 @@ pub fn generate_jumplist(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
                 #(Opcode {#opcodes},)*
             ];
 
-            pub fn placeholder(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) {
+            pub fn placeholder(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
                 println!("opcode not implemented.");
+                0
             }
     };
     template

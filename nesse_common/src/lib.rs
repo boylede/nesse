@@ -88,7 +88,8 @@ impl AddressingMode {
             _ => panic!("not found {}", str),
         }
     }
-    pub fn to_u8(&self) -> u8 {
+    pub const fn to_u8(&self) -> u8 {
+        use AddressingMode::*;
         match self {
             Implicit => 0,
             Accumulator => 1,
@@ -103,6 +104,25 @@ impl AddressingMode {
             Indirect => 10,
             IndexedIndirect => 11,
             IndirectIndexed => 12,
+        }
+    }
+    pub const fn from_u8(num: u8) -> AddressingMode {
+        use AddressingMode::*;
+        match num {
+            0 => Implicit,
+            1 => Accumulator,
+            2 => Immediate,
+            3 => ZeroPage,
+            4 => ZeroPageX,
+            5 => ZeroPageY,
+            6 => Relative,
+            7 => Absolute,
+            8 => AbsoluteX,
+            9 => AbsoluteY,
+            10 => Indirect,
+            11 => IndexedIndirect,
+            12 => IndirectIndexed,
+            _ => Implicit,
         }
     }
 }
