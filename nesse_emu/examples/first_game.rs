@@ -29,28 +29,27 @@ const game_code: &[u8] = &[
 ];
 
 fn main() {
-    let mut stdout = stdout();
-    // execute!(stdout, EnterAlternateScreen).unwrap();
-    enable_raw_mode().unwrap();
-    stdout.execute(cursor::Hide).unwrap();
-    stdout.execute(terminal::Clear(terminal::ClearType::All)).unwrap();
     let mut nes = Nes::default()
         .with_peripheral(Box::new(RandomNumberGenerator(0xfe)))
         .with_peripheral(Box::new(KeyboardInput(0xff, 0x00)))
         .with_peripheral(Box::new(SimpleScreen(0x200)))
+        .with_peripheral(Box::new(RateLimiter))
+        .with_peripheral(Box::new(PCPrinter))
         .with_initial_memory(0, &game_code)
         ;
-    let mut a = 0;
-    for _ in 0..10000000 {
-        a = a + 1000000 / 27000000;
-        nes.step();
-    }
-    // // nes.step();
-    // nes.run_until_nop();
+    nes.init();
 
-    // execute!(stdout, LeaveAlternateScreen).unwrap();
-    stdout.execute(cursor::Show).unwrap();
-    disable_raw_mode().unwrap();
+    nes.run_until_nop();
+    nes.cleanup();
+}
+
+pub struct RateLimiter;
+
+
+impl NesPeripheral for RateLimiter {
+    fn tick(&mut self, nes: &mut Nes) {
+        ::std::thread::sleep(std::time::Duration::new(0, 100_000_000)); // 16_666_666
+    }
 }
 
 /// inserts a random number into the game every tick at the given address
@@ -58,7 +57,8 @@ pub struct RandomNumberGenerator(u16);
 
 impl NesPeripheral for RandomNumberGenerator {
     fn tick(&mut self, nes: &mut Nes) {
-        nes.inject_memory_value(self.0, 0x42);
+        let num:u8 = rand::thread_rng().gen_range(1,16);
+        nes.inject_memory_value(self.0, num);
     }
 }
 
@@ -70,33 +70,70 @@ impl NesPeripheral for KeyboardInput {
     }
 }
 
+pub struct PCPrinter;
+
+impl NesPeripheral for PCPrinter {
+    fn cleanup(&mut self, nes: &mut Nes) {
+        let next_opcode = nes.next_byte();
+        println!("next opcode: {:x}", next_opcode);
+    }
+}
+
 /// a 32x32 screen
 pub struct SimpleScreen(u16);
 
 impl NesPeripheral for SimpleScreen {
-    fn tick(&mut self, nes: &mut Nes) {
-        // execute!(stdout(), Clear(ClearType::All)).unwrap();
+    fn init(&mut self, nes: &mut Nes) {
+        
         let mut stdout = stdout();
+        // stdout.execute(ScrollUp(3)).unwrap();
+        execute!(stdout, EnterAlternateScreen).unwrap();
+        enable_raw_mode().unwrap();
+        // stdout.execute(DisableLineWrap).unwrap();
+        stdout.execute(cursor::Hide).unwrap();
+        // stdout
+        //     .execute(terminal::Clear(terminal::ClearType::All))
+        //     .unwrap();
+    }
+    fn tick(&mut self, nes: &mut Nes) {
+        let mut stdout = stdout();
+        execute!(stdout, Clear(ClearType::All)).unwrap();
         for x in 0..34 {
             for y in 0..34 {
                 stdout.queue(cursor::MoveTo(x, y)).unwrap();
                 if x == 0 || x == 33 || y == 0 || y == 33 {
-                    stdout.queue(style::Print("█")).unwrap();
+                    stdout.queue(style::Print("#")).unwrap(); // █
                 } else {
                     let x = x - 1;
                     let y = y - 1;
                     let color = nes.extract_memory(self.0 + x * 32 + y);
                     if color == 4 {
                         // should be "green"
-                        stdout.queue(style::PrintStyledContent("x".green())).unwrap();
+                        stdout
+                            .queue(style::PrintStyledContent("x".green()))
+                            .unwrap();
                     } else if color == 3 {
                         // should be "red"
                         stdout.queue(style::PrintStyledContent("o".red())).unwrap();
+                    } else {
+                        stdout.queue(style::Print(" ")).unwrap();
                     }
                 }
             }
         }
-
+        stdout.queue(cursor::MoveTo(0, 37)).unwrap();
+        // stdout.queue(ScrollDown(2)).unwrap();
         stdout.flush().unwrap();
     }
+    fn cleanup(&mut self, nes: &mut Nes) {
+        let mut stdout = stdout();
+        // stdout.execute(EnableLineWrap).unwrap();
+        
+        disable_raw_mode().unwrap();
+        execute!(stdout, LeaveAlternateScreen).unwrap();
+        stdout.execute(cursor::Show).unwrap();
+        
+        
+    }
 }
+

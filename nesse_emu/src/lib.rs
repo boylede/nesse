@@ -14,7 +14,15 @@ pub use opcodes::jumptable::opcode_jumptable;
 
 /// allows a function to be called by an instance of the NES at each tick
 pub trait NesPeripheral {
-    fn tick(&mut self, nes: &mut Nes);
+    fn init(&mut self, nes: &mut Nes) {
+
+    }
+    fn tick(&mut self, nes: &mut Nes) {
+
+    }
+    fn cleanup(&mut self, nes: &mut Nes) {
+
+    }
 }
 
 /// an instance of an NES machine
@@ -30,6 +38,22 @@ pub struct Nes {
 }
 
 impl Nes {
+    pub fn init(&mut self) {
+        if let Some(mut peripherals) = self.peripherals.take() {
+            for p in peripherals.iter_mut() {
+                p.init(self);
+            }
+            self.peripherals.replace(peripherals);
+        }
+        
+    }
+    pub fn cleanup(&mut self) {
+        if let Some(mut peripherals) = self.peripherals.take() {
+            for p in peripherals.iter_mut() {
+                p.cleanup(self);
+            }
+        }
+    }
     pub fn extract_memory(&self, address: u16) -> u8 {
         self.ram.get(address)
     }
