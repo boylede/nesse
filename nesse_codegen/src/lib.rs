@@ -49,7 +49,8 @@ fn generate_opcode_stub(name: String) -> TokenStream {
     quote! {
         pub fn #ident(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
             println!("{} unimplemented", #name);
-            unimplemented!()
+            nes.cpu.running = false;
+            cycles
         }
     }
 }
