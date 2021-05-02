@@ -56,260 +56,260 @@ pub fn adc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
 // stub implementations provided by codegen crate:
 pub fn cpy(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "cpy");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 
 pub fn and(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "and");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn asl(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "asl");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn bcc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "bcc");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn bcs(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "bcs");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn beq(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "beq");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn bit(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "bit");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn bmi(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "bmi");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn bne(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "bne");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn bpl(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "bpl");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 
 pub fn bvc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "bvc");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn bvs(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "bvs");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn clc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "clc");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn cld(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "cld");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn cli(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "cli");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn clv(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "clv");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn cmp(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "cmp");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn cpx(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "cpx");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn dec(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "dec");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn dex(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "dex");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn dey(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "dey");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn eor(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "eor");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn inc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "inc");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 
 pub fn iny(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "iny");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn jmp(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "jmp");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn jsr(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "jsr");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn ldx(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "ldx");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn ldy(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "ldy");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn lsr(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "lsr");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn nop(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "nop");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn ora(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "ora");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn pha(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "pha");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn php(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "php");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn pla(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "pla");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn plp(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "plp");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn rol(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "rol");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn ror(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "ror");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn rti(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "rti");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn rts(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "rts");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn sbc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "sbc");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn sec(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "sec");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn sed(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "sed");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn sei(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "sei");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn sta(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "sta");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn stx(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "stx");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn sty(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "sty");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 
 pub fn tay(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "tay");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn tsx(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "tsx");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn txa(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "txa");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn txs(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "txs");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
 pub fn tya(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "tya");
-    nes.cpu.running = false;
+    nes.cpu.running = false; nes.cpu.registers.pc -= 1;
     cycles
 }
