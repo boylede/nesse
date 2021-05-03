@@ -29,17 +29,18 @@ pub trait NesPeripheral {
 
 /// an instance of an NES machine
 #[derive(Default)]
-pub struct Nes {
+pub struct Nes<'a> {
     cpu: Nes2a03,
     ppu: Nes2c02,
     ram: NesRam,
     apu: Nes2a03Audio,
     cartridge: Option<NesCart>,
     gamepads: [Option<NesGamepad>; 8],
-    peripherals: Option<Vec<Box<dyn NesPeripheral>>>,
+    // todo: switch to enum_dispatch
+    peripherals: Option<Vec<&'a mut NesPeripheral >>,
 }
 
-impl Nes {
+impl<'a> Nes<'a> {
     pub fn load_rom(&mut self, rom: &[u8]) {
         unimplemented!()
     }
@@ -65,18 +66,18 @@ impl Nes {
     pub fn extract_memory(&self, address: u16) -> u8 {
         self.ram.get(address)
     }
-    pub fn with_initial_memory(mut self, address: u16, memory: &[u8]) -> Nes {
+    pub fn with_initial_memory(mut self, address: u16, memory: &[u8]) -> Nes<'a> {
         self.ram.set_region(address, memory);
         self
     }
-    pub fn with_peripheral(mut self, p: Box<dyn NesPeripheral>) -> Nes {
+    pub fn with_peripheral(mut self, p: &'a mut NesPeripheral) -> Nes<'a> {
         self.add_peripheral(p);
         self
     }
     pub fn set_pc(&mut self, value: u16) {
         self.cpu.registers.pc = value;
     }
-    pub fn add_peripheral(&mut self, p: Box<dyn NesPeripheral>) {
+    pub fn add_peripheral(&mut self, p: &'a mut NesPeripheral) {
         if let Some(ref mut v) = self.peripherals {
             v.push(p);
         } else {
