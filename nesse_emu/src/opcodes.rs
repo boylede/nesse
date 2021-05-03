@@ -80,6 +80,10 @@ pub fn brk(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     cycles
 }
 
+pub fn nop(_nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    cycles
+}
+
 // arithmetic family -----------------------------------------------------
 
 /// helper function to add a value to register a, setting appropriate flags
@@ -238,11 +242,12 @@ pub fn beq(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 
 pub fn bne(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     if nes.cpu.registers.status_zero() == false {
-        let offset = nes.ram.get(nes.cpu.registers.pc) as i32;
+        let offset = nes.ram.get(nes.cpu.registers.pc) as i8;
+        println!("adding {} to pc {}", offset, nes.cpu.registers.pc);
         let new_pc = nes.cpu.registers.pc
         .wrapping_add(1) // add one to advance PC past the above read
         as i32; // upcast to i32 in order to avoid clipping
-        let pc = ((new_pc + offset) & 0xffff) as u16;
+        let pc = ((new_pc + offset as i32) & 0xffff) as u16;
         nes.cpu.registers.pc = pc;
         println!("bneranching to {:x}", pc);
     } else {
@@ -251,7 +256,7 @@ pub fn bne(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     cycles
 }
 
-pub fn bpl(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+pub fn bpl(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let offset = nes.ram.get(nes.cpu.registers.pc) as i8;
     nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
     if nes.cpu.registers.status_negative() == false {
@@ -382,12 +387,7 @@ pub fn iny(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     cycles
 }
 
-pub fn nop(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "nop");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
+
 pub fn ora(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "ora");
     nes.cpu.running = false;
