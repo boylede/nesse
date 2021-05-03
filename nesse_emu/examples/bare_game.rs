@@ -1,19 +1,15 @@
-use crossterm::{
-    cursor,
-    event::{self, Event, KeyCode, KeyEvent},
-    execute, queue,
-    style::{self, Colorize},
-    terminal::{
-        self, disable_raw_mode, enable_raw_mode, size, Clear, ClearType, DisableLineWrap,
-        EnableLineWrap, EnterAlternateScreen, LeaveAlternateScreen, ScrollDown, ScrollUp, SetSize,
-    },
-    Command, ExecutableCommand, QueueableCommand, Result,
-};
-use rand::Rng;
-use std::io::{stdout, Stdout, Write};
-
 use nesse_emu::prelude::*;
+use rand::Rng;
+use sdl2::{
+    event::Event,
+    keyboard::Keycode,
+    pixels::{Color, PixelFormatEnum},
+    render::{Canvas, Texture, TextureCreator},
+    video::{Window, WindowContext},
+    EventPump, Sdl, VideoSubsystem,
+};
 
+#[rustfmt::skip]
 const GAME_CODE: &[u8] = &[
     // 0x0600
     0x20, 0x06, 0x06, // jsr init
@@ -166,14 +162,37 @@ const GAME_CODE: &[u8] = &[
 
 fn main() {
     // let snake_cartridge = NesCart::simple(0x600, game_code);
+    let context = sdl2::init().unwrap();
+    let video_subsystem = context.video().unwrap();
+    let window = video_subsystem
+        .window("Snake game", (32.0 * 10.0) as u32, (32.0 * 10.0) as u32)
+        .position_centered()
+        .build()
+        .unwrap();
+
+    let mut canvas = window.into_canvas().present_vsync().build().unwrap();
+    let mut event_pump = context.event_pump().unwrap();
+    canvas.set_scale(10.0, 10.0).unwrap();
+
+    let creator = canvas.texture_creator();
+    let mut texture = creator
+        .create_texture_target(PixelFormatEnum::RGB24, 32, 32)
+        .unwrap();
+
+    let mut random = RandomNumberGenerator(0xfe);
+    let mut input = KeyboardInput::new(0xff);
+    let mut screen = SimpleScreen::new(0x200, texture, &mut canvas);
+    let mut spy = Spy;
+    let mut rate = RateLimiter;
+
     let mut nes = Nes::default()
-        .with_peripheral(Box::new(RandomNumberGenerator(0xfe)))
-        .with_peripheral(Box::new(KeyboardInput(0xff, 0x00)))
-        .with_peripheral(Box::new(Spy))
-        // .with_peripheral(Box::new(SimpleScreen(0x200)))
-        .with_peripheral(Box::new(RateLimiter))
-        .with_peripheral(Box::new(PCPrinter))
-        .with_initial_memory(0x600, &game_code);
+        .with_peripheral(&mut random)
+        .with_peripheral(&mut input)
+        .with_peripheral(&mut spy)
+        .with_peripheral(&mut screen)
+        .with_peripheral(&mut rate)
+        // .with_peripheral(Box::new(PCPrinter))
+        .with_initial_memory(0x600, &GAME_CODE);
     nes.set_pc(0x600);
     nes.init();
 
@@ -195,8 +214,8 @@ impl NesPeripheral for Spy {
     fn tick(&mut self, nes: &mut Nes) {
         let next_opcode = nes.peek_pc();
         let stack = nes.dump_stack();
-        print!("{:x} ## {:?} ",next_opcode, nes.dump_registers());
-        println!("{}",stack);
+        print!("{:x} ## {:?} ", next_opcode, nes.dump_registers());
+        println!("{}", stack);
     }
 }
 
@@ -212,9 +231,51 @@ impl NesPeripheral for RandomNumberGenerator {
 
 pub struct KeyboardInput(u16, u8);
 
+impl KeyboardInput {
+    pub fn new(mapped_address: u16) -> KeyboardInput {
+        KeyboardInput(mapped_address, 0)
+    }
+}
+
 impl NesPeripheral for KeyboardInput {
     fn tick(&mut self, nes: &mut Nes) {
         nes.inject_memory_value(self.0, self.1);
+        // handle input
+        unimplemented!();
+        // for event in self.event_pump.poll_iter() {
+        //     match event {
+        //         Event::Quit { .. }
+        //         | Event::KeyDown {
+        //             keycode: Some(Keycode::Escape),
+        //             ..
+        //         } => std::process::exit(0),
+        //         Event::KeyDown {
+        //             keycode: Some(Keycode::W),
+        //             ..
+        //         } => {
+        //             // cpu.mem_write(0xff, 0x77);
+        //         }
+        //         Event::KeyDown {
+        //             keycode: Some(Keycode::S),
+        //             ..
+        //         } => {
+        //             // cpu.mem_write(0xff, 0x73);
+        //         }
+        //         Event::KeyDown {
+        //             keycode: Some(Keycode::A),
+        //             ..
+        //         } => {
+        //             // cpu.mem_write(0xff, 0x61);
+        //         }
+        //         Event::KeyDown {
+        //             keycode: Some(Keycode::D),
+        //             ..
+        //         } => {
+        //             // cpu.mem_write(0xff, 0x64);
+        //         }
+        //         _ => { /* do nothing */ }
+        //     }
+        // }
     }
 }
 
@@ -232,56 +293,57 @@ impl NesPeripheral for PCPrinter {
 }
 
 /// a 32x32 screen
-pub struct SimpleScreen(u16);
+pub struct SimpleScreen<'a> {
+    mapped_address: u16,
+    last_screen_state: Vec<u8>,
+    texture: Texture<'a>,
+    canvas: &'a mut Canvas<Window>,
+}
 
-impl NesPeripheral for SimpleScreen {
+impl<'a> SimpleScreen<'a> {
+    pub fn new(mapped_address: u16, texture: Texture<'a>,
+    canvas: &'a mut Canvas<Window>,) -> SimpleScreen<'a> {
+        let last_screen_state = vec![0u8;32*32];
+        SimpleScreen {
+            mapped_address,
+            last_screen_state,
+            texture,
+            canvas
+        }
+    }
+}
+
+impl<'a> NesPeripheral for SimpleScreen<'a> {
     fn init(&mut self, nes: &mut Nes) {
-        let mut stdout = stdout();
-        // stdout.execute(ScrollUp(3)).unwrap();
-        execute!(stdout, EnterAlternateScreen).unwrap();
-        enable_raw_mode().unwrap();
-        // stdout.execute(DisableLineWrap).unwrap();
-        stdout.execute(cursor::Hide).unwrap();
-        // stdout
-        //     .execute(terminal::Clear(terminal::ClearType::All))
-        //     .unwrap();
+        
     }
     fn tick(&mut self, nes: &mut Nes) {
-        let mut stdout = stdout();
-        execute!(stdout, Clear(ClearType::All)).unwrap();
-        for x in 0..34 {
-            for y in 0..34 {
-                stdout.queue(cursor::MoveTo(x, y)).unwrap();
-                if x == 0 || x == 33 || y == 0 || y == 33 {
-                    stdout.queue(style::Print("#")).unwrap(); // █
+        if memory_changed(nes, self.mapped_address, self.last_screen_state.len() as u16, &self.last_screen_state) {
+            self.texture.update(None, &self.last_screen_state, 32 * 3).unwrap();
+            self.canvas.copy(&self.texture, None, None).unwrap();
+            self.canvas.present();
+        }
+        
+        // init frame
+        for x in 0..32 {
+            for y in 0..32 {
+                let x = x - 1;
+                let y = y - 1;
+                let color = nes.extract_memory(self.mapped_address + x * 32 + y);
+                if color == 4 {
+                    // should be "green"
+                } else if color == 3 {
+                    // should be "red"
                 } else {
-                    let x = x - 1;
-                    let y = y - 1;
-                    let color = nes.extract_memory(self.0 + x * 32 + y);
-                    if color == 4 {
-                        // should be "green"
-                        stdout
-                            .queue(style::PrintStyledContent("x".green()))
-                            .unwrap();
-                    } else if color == 3 {
-                        // should be "red"
-                        stdout.queue(style::PrintStyledContent("o".red())).unwrap();
-                    } else {
-                        stdout.queue(style::Print(" ")).unwrap();
-                    }
+                    // draw background
                 }
             }
         }
-        stdout.queue(cursor::MoveTo(0, 37)).unwrap();
-        // stdout.queue(ScrollDown(2)).unwrap();
-        stdout.flush().unwrap();
+        // wrap up frame
     }
-    fn cleanup(&mut self, nes: &mut Nes) {
-        let mut stdout = stdout();
-        // stdout.execute(EnableLineWrap).unwrap();
+    fn cleanup(&mut self, nes: &mut Nes) {}
+}
 
-        disable_raw_mode().unwrap();
-        execute!(stdout, LeaveAlternateScreen).unwrap();
-        stdout.execute(cursor::Show).unwrap();
-    }
+fn memory_changed(nes: &Nes, address: u16, size: u16, old: &[u8]) -> bool {
+    unimplemented!()
 }
