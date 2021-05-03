@@ -164,7 +164,8 @@ pub fn bne(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         as i32; // upcast to i32 in order to avoid clipping
         let pc = ((new_pc + offset) & 0xffff ) as u16;
         nes.cpu.registers.pc = pc;
-        println!("branching to {:x}", pc);
+    } else {
+        nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
     }
     cycles
 }
