@@ -4,7 +4,7 @@ use crate::Nes;
 pub mod jumptable;
 
 // load & store family --------------------------------------------------------
-pub fn ldx(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+pub fn ldx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.ram.get(address);
     nes.cpu.registers.x = value;
@@ -36,6 +36,12 @@ pub fn tax(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 
 pub fn inx(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.cpu.registers.x.wrapping_add(1);
+    nes.cpu.registers.x = value;
+    nes.cpu.registers.set_flags(value);
+    cycles
+}
+pub fn dex(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    let value = nes.cpu.registers.x.wrapping_sub(1);
     nes.cpu.registers.x = value;
     nes.cpu.registers.set_flags(value);
     cycles
@@ -84,6 +90,7 @@ pub fn and(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     cycles
 }
 
+
 // compare family --------------------------------------------------------------
 pub fn cmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
@@ -95,7 +102,7 @@ pub fn cmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     nes.cpu.registers.set_flags(compare as u8);
     cycles
 }
-pub fn cpx(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+pub fn cpx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.ram.get(address);
     let compare = nes.cpu.registers.x as i16 - value as i16;
@@ -116,6 +123,13 @@ pub fn jsr(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     
     nes.ram
         .stack_push_short(&mut nes.cpu.registers.sp, return_address);
+    nes.cpu.registers.pc = jump_address;
+    println!("jumping to subrouting {:x}", jump_address);
+    cycles
+}
+pub fn jmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    let address = nes.get_address_from_mode(addressing);
+    let jump_address = nes.ram.get_short(address);
     nes.cpu.registers.pc = jump_address;
     println!("jumping to {:x}", jump_address);
     cycles
@@ -246,12 +260,7 @@ pub fn dec(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     nes.cpu.registers.pc -= 1;
     cycles
 }
-pub fn dex(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "dex");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
+
 pub fn dey(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "dey");
     nes.cpu.running = false;
@@ -277,12 +286,7 @@ pub fn iny(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     nes.cpu.registers.pc -= 1;
     cycles
 }
-pub fn jmp(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "jmp");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
+
 
 
 pub fn ldy(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
