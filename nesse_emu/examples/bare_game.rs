@@ -315,33 +315,43 @@ impl<'a> SimpleScreen<'a> {
             canvas,
         }
     }
-    pub fn draw_screen(&mut self, nes: &Nes) -> Vec<u8> {
+    pub fn update_window(&mut self, nes: &Nes) {
+        let pixel_data = self.draw_frame(nes);
+        self.texture
+            .update(None, &pixel_data, 32 * 3)
+            .unwrap();
+        self.canvas.copy(&self.texture, None, None).unwrap();
+        self.canvas.present();
+    }
+    pub fn draw_frame(&mut self, nes: &Nes) -> Vec<u8> {
         let mut frame = Vec::with_capacity(32*32*3);
-        for i in 0..(32*32) {
-            let color = nes.extract_memory(self.mapped_address + i);
-            if color == 4 {
-                // should be "green"
-                frame.push(0);
-                frame.push(255);
-                frame.push(0);
-            } else if color == 3 {
-                // should be "red"
-                frame.push(255);
-                frame.push(0);
-                frame.push(0);
-            } else {
-                // draw background
-                frame.push(0);
-                frame.push(0);
-                frame.push(0);
-            }
+        let buffer = nes.extract_memory_region(self.mapped_address, 32*32);
+        for color in buffer.iter() {
+            let pixel = match color {
+                0 => Color::BLACK,
+                1 => Color::WHITE,
+                2 | 9 => Color::GREY,
+                3 | 10 => Color::RED,
+                4 | 11 => Color::GREEN,
+                5 | 12 => Color::BLUE,
+                6 | 13 => Color::MAGENTA,
+                7 | 14 => Color::YELLOW,
+                _ => Color::CYAN,
+            };
+            let (r,g,b) = pixel.rgb();
+            frame.push(r);
+            frame.push(g);
+            frame.push(b);
         }
+        self.last_screen_state = buffer;
         frame
     }
 }
 
 impl<'a> NesPeripheral for SimpleScreen<'a> {
-    fn init(&mut self, _nes: &mut Nes) {}
+    fn init(&mut self, nes: &mut Nes) {
+        self.update_window(nes);
+    }
     fn tick(&mut self, nes: &mut Nes) {
         if memory_changed(
             nes,
@@ -349,12 +359,7 @@ impl<'a> NesPeripheral for SimpleScreen<'a> {
             self.last_screen_state.len() as u16,
             &self.last_screen_state,
         ) {
-            let pixel_data = self.draw_screen(nes);
-            self.texture
-                .update(None, &pixel_data, 32 * 3)
-                .unwrap();
-            self.canvas.copy(&self.texture, None, None).unwrap();
-            self.canvas.present();
+            self.update_window(nes);
         }
     }
     fn cleanup(&mut self, _nes: &mut Nes) {}
@@ -363,8 +368,9 @@ impl<'a> NesPeripheral for SimpleScreen<'a> {
 fn memory_changed(nes: &Nes, address: u16, size: u16, old: &[u8]) -> bool {
     for i in 0..size {
         if nes.extract_memory(i + address) != old[i as usize] {
-            return false;
+            println!("screen updated");
+            return true;
         }
     }
-    true
+    false
 }
