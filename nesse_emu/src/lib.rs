@@ -269,6 +269,9 @@ impl NesRegisters {
     pub fn status_negative(&self) -> bool {
         self.p & FLAG_NEGATIVE == FLAG_NEGATIVE
     }
+    pub fn status_carry(&self) -> bool {
+        self.p & FLAG_CARRY == FLAG_CARRY
+    }
     pub fn with_a(mut self, value: u8) -> Self {
         self.a = value;
         self
@@ -392,7 +395,9 @@ impl NesRam {
             }
             7 => {
                 // Absolute
-                unimplemented!()
+                let value = registers.pc;
+                registers.pc += 2; // skips two bytes since pointers are a two byte value
+                value
             }
             8 => {
                 // AbsoluteX
@@ -412,7 +417,12 @@ impl NesRam {
             }
             12 => {
                 // IndirectIndexed
-                unimplemented!()
+                // let instruction = self.get(registers.pc - 1);
+                // println!("{:x} requested indirectindexed addressing", instruction);
+                let base = self.get(registers.pc);
+                let lo = self.get(base as u16);
+                let hi = self.get(base.wrapping_add(1) as u16);
+                (hi as u16) << 8 | (lo as u16).wrapping_add(registers.y as u16)
             }
             _ => {
                 unimplemented!()
@@ -426,8 +436,8 @@ impl NesRam {
         self.debug_stack_depth += 1;
     }
     pub fn stack_pop(&mut self, sp: &mut u8) -> u8 {
-        let value = self.get(*sp as u16 + STACK_OFFSET);
         *sp = sp.wrapping_add(1);
+        let value = self.get(*sp as u16 + STACK_OFFSET);
         self.debug_stack_depth -= 1;
         value
     }
@@ -436,9 +446,11 @@ impl NesRam {
         self.stack_push(sp, ((value >> 8) & 0xff) as u8);
     }
     pub fn stack_pop_short(&mut self, sp: &mut u8) -> u16 {
-        let low = self.stack_pop(sp) as u16;
         let high = self.stack_pop(sp) as u16;
-        (high << 8) | low
+        let low = self.stack_pop(sp) as u16;
+        let value = (high << 8) | low;
+        // println!("popped short {:x} from stack", value);
+        value
     }
     pub fn load_cartridge(&mut self, cartridge: NesCart) {
         unimplemented!()

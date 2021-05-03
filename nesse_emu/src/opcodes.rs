@@ -20,6 +20,14 @@ pub fn lda(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     cycles
 }
 
+pub fn ldy(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    let address = nes.get_address_from_mode(addressing);
+    let value = nes.ram.get(address);
+    nes.cpu.registers.y = value;
+    nes.cpu.registers.set_flags(value);
+    cycles
+}
+
 pub fn sta(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     nes.ram.set(address, nes.cpu.registers.a);
@@ -33,22 +41,35 @@ pub fn tax(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     nes.cpu.registers.set_flags(value);
     cycles
 }
+pub fn txa(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    let value = nes.cpu.registers.x;
+    nes.cpu.registers.a = value; 
+    nes.cpu.registers.set_flags(value);
+    cycles
+}
 
 pub fn inx(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.cpu.registers.x.wrapping_add(1);
     nes.cpu.registers.x = value;
     nes.cpu.registers.set_flags(value);
+    println!("inx to {}", value);
     cycles
 }
 pub fn dex(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.cpu.registers.x.wrapping_sub(1);
     nes.cpu.registers.x = value;
     nes.cpu.registers.set_flags(value);
+    println!("dex to {}", value);
     cycles
 }
 
 pub fn clc(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     nes.cpu.registers.clear_carry();
+    cycles
+}
+
+pub fn sec(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    nes.cpu.registers.set_carry();
     cycles
 }
 
@@ -60,10 +81,11 @@ pub fn brk(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 }
 
 // arithmetic family -----------------------------------------------------
-pub fn adc(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+
+/// helper function to add a value to register a, setting appropriate flags
+/// including the carry flag
+fn add_to_a(nes:&mut Nes, input: u8) {
     let carry = nes.cpu.registers.get_carry();
-    let address = nes.get_address_from_mode(addressing);
-    let input = nes.ram.get(address);
     let value = input as u16 + nes.cpu.registers.a as u16 + carry as u16;
     let low_value = (value & 0xff) as u8;
 
@@ -79,6 +101,19 @@ pub fn adc(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         nes.cpu.registers.clear_overflow();
     }
     nes.cpu.registers.a = low_value;
+}
+
+pub fn adc(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    let address = nes.get_address_from_mode(addressing);
+    let input = nes.ram.get(address);
+    add_to_a(nes,input);
+    cycles
+}
+
+pub fn sbc(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    let address = nes.get_address_from_mode(addressing);
+    let input = nes.ram.get(address) as i8;
+    add_to_a(nes,input.wrapping_neg().wrapping_sub(1) as u8);
     cycles
 }
 
@@ -86,6 +121,39 @@ pub fn and(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.ram.get(address) & nes.cpu.registers.a;
     nes.cpu.registers.a = value;
+    nes.cpu.registers.set_flags(value);
+    cycles
+}
+pub fn lsr(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    // todo: this is gross, fix it fix it fix it
+    if addressing == 1 {
+        // operate on the accumulator
+        let mut value = nes.cpu.registers.a;
+        if value & 0b1 == 0b1 {
+            nes.cpu.registers.set_carry();
+        }
+        value = value >> 1;
+        nes.cpu.registers.set_flags(value);
+        nes.cpu.registers.a = value;
+
+    } else {
+        // operate per addressing mode
+        let address = nes.get_address_from_mode(addressing);
+        let mut value = nes.ram.get(address);
+        if value & 0b1 == 0b1 {
+            nes.cpu.registers.set_carry();
+        }
+        value = value >> 1;
+        nes.cpu.registers.set_flags(value);
+        nes.ram.set(address, value);
+    }
+    cycles
+}
+
+pub fn dec(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let address = nes.get_address_from_mode(addressing);
+    let value = nes.ram.get(address).wrapping_sub(1);
+    nes.ram.set(address, value);
     nes.cpu.registers.set_flags(value);
     cycles
 }
@@ -99,11 +167,13 @@ pub fn cmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         nes.cpu.registers.set_carry();
     }
     nes.cpu.registers.set_flags(compare as u8);
+    println!("cmp {} - {} resulted in {}", nes.cpu.registers.a, value, compare);
     cycles
 }
 pub fn cpx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.ram.get(address);
+    println!("comparing {} to {}", value, nes.cpu.registers.x);
     let compare = nes.cpu.registers.x as i16 - value as i16;
     if compare <= 0 {
         nes.cpu.registers.set_carry();
@@ -123,14 +193,14 @@ pub fn jsr(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     nes.ram
         .stack_push_short(&mut nes.cpu.registers.sp, return_address);
     nes.cpu.registers.pc = jump_address;
-    // println!("jumping to subrouting {:x}", jump_address);
+    println!("jumping to subroutine {:x}", jump_address);
     cycles
 }
 pub fn jmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let jump_address = nes.ram.get_short(address);
     nes.cpu.registers.pc = jump_address;
-    // println!("jumping to {:x}", jump_address);
+    println!("jumping to {:x}", jump_address);
     cycles
 }
 pub fn rts(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
@@ -139,22 +209,29 @@ pub fn rts(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     // todo: add tests to show this has the right value
     let pc = value.wrapping_add(1);
     nes.cpu.registers.pc = pc;
-    // println!("returning to {:x}", pc);
+    println!("returning to {:x}", pc);
     cycles
 }
 
 pub fn beq(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    // todo: this is always relative addressing
-    let address = nes.get_address_from_mode(addressing);
+    // // todo: this is always relative addressing
+    // // let address = nes.get_address_from_mode(addressing);
+    // let base = nes.ram.get(nes.cpu.registers.pc) as u16;
+    // nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
+    // if nes.cpu.registers.status_zero() == true {
+    //     let pc = nes.cpu.registers.pc
+    //         .wrapping_add(base);
+    //         // .wrapping_add(1);
+    //     nes.cpu.registers.pc = pc;
+    //     println!("beqranching to {:x}", pc);
+    //     // todo: cycles should increment
+    // }
+    let offset = nes.ram.get(nes.cpu.registers.pc) as u16;
+    nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
     if nes.cpu.registers.status_zero() == true {
-        let pc = nes
-            .cpu
-            .registers
-            .pc
-            .wrapping_add(nes.ram.get(address) as u16);
+        let pc = nes.cpu.registers.pc.wrapping_add(offset);
         nes.cpu.registers.pc = pc;
-        // println!("branching to {:x}", pc);
-        // todo: cycles should increment
+        println!("bplranching to {:x}", pc);
     }
     cycles
 }
@@ -167,8 +244,48 @@ pub fn bne(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         as i32; // upcast to i32 in order to avoid clipping
         let pc = ((new_pc + offset) & 0xffff) as u16;
         nes.cpu.registers.pc = pc;
+        println!("bneranching to {:x}", pc);
     } else {
         nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
+    }
+    cycles
+}
+
+pub fn bpl(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let offset = nes.ram.get(nes.cpu.registers.pc) as i8;
+    nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
+    if nes.cpu.registers.status_negative() == false {
+        println!("adding {} to pc {}", offset, nes.cpu.registers.pc);
+        let mut pc = nes.cpu.registers.pc as i32;
+        pc = (pc + offset as i32) & 0xffff;
+        nes.cpu.registers.pc = pc as u16;
+        println!("bplranching to {:x}", pc);
+    }
+    cycles
+}
+
+pub fn bcs(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    let offset = nes.ram.get(nes.cpu.registers.pc) as i8;
+    nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
+    if nes.cpu.registers.status_carry() == true {
+        println!("adding {} to pc {}", offset, nes.cpu.registers.pc);
+        let mut pc = nes.cpu.registers.pc as i32;
+        pc = (pc + offset as i32) & 0xffff;
+        nes.cpu.registers.pc = pc as u16;
+        println!("bcsranching to {:x}", pc);
+    }
+    cycles
+}
+
+pub fn bcc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let offset = nes.ram.get(nes.cpu.registers.pc) as i8;
+    nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
+    if nes.cpu.registers.status_carry() == false {
+        println!("adding {} to pc {}", offset, nes.cpu.registers.pc);
+        let mut pc = nes.cpu.registers.pc as i32;
+        pc = (pc + offset as i32) & 0xffff;
+        nes.cpu.registers.pc = pc as u16;
+        println!("bccranching to {:x}", pc);
     }
     cycles
 }
@@ -195,18 +312,7 @@ pub fn asl(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     nes.cpu.registers.pc -= 1;
     cycles
 }
-pub fn bcc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "bcc");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
-pub fn bcs(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "bcs");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
+
 
 pub fn bmi(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "bmi");
@@ -215,12 +321,6 @@ pub fn bmi(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     cycles
 }
 
-pub fn bpl(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "bpl");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
 
 pub fn bvc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "bvc");
@@ -254,12 +354,7 @@ pub fn clv(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     cycles
 }
 
-pub fn dec(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "dec");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
+
 
 pub fn dey(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "dey");
@@ -287,18 +382,6 @@ pub fn iny(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     cycles
 }
 
-pub fn ldy(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "ldy");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
-pub fn lsr(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "lsr");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
 pub fn nop(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "nop");
     nes.cpu.running = false;
@@ -354,18 +437,7 @@ pub fn rti(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     cycles
 }
 
-pub fn sbc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "sbc");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
-pub fn sec(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "sec");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
+
 pub fn sed(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "sed");
     nes.cpu.running = false;
@@ -403,12 +475,7 @@ pub fn tsx(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     nes.cpu.registers.pc -= 1;
     cycles
 }
-pub fn txa(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "txa");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
+
 pub fn txs(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "txs");
     nes.cpu.running = false;
