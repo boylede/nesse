@@ -180,7 +180,7 @@ fn main() {
         .unwrap();
 
     let mut random = RandomNumberGenerator(0xfe);
-    let mut input = KeyboardInput::new(0xff);
+    let mut input = KeyboardInput::new(0xff, event_pump);
     let mut screen = SimpleScreen::new(0x200, texture, &mut canvas);
     let mut spy = Spy;
     let mut rate = RateLimiter;
@@ -229,53 +229,54 @@ impl NesPeripheral for RandomNumberGenerator {
     }
 }
 
-pub struct KeyboardInput(u16, u8);
+pub struct KeyboardInput(u16, EventPump);
 
 impl KeyboardInput {
-    pub fn new(mapped_address: u16) -> KeyboardInput {
-        KeyboardInput(mapped_address, 0)
+    pub fn new(mapped_address: u16, event_pump: EventPump) -> KeyboardInput {
+        KeyboardInput(mapped_address, event_pump)
     }
 }
 
 impl NesPeripheral for KeyboardInput {
     fn tick(&mut self, nes: &mut Nes) {
-        nes.inject_memory_value(self.0, self.1);
-        // handle input
-        unimplemented!();
-        // for event in self.event_pump.poll_iter() {
-        //     match event {
-        //         Event::Quit { .. }
-        //         | Event::KeyDown {
-        //             keycode: Some(Keycode::Escape),
-        //             ..
-        //         } => std::process::exit(0),
-        //         Event::KeyDown {
-        //             keycode: Some(Keycode::W),
-        //             ..
-        //         } => {
-        //             // cpu.mem_write(0xff, 0x77);
-        //         }
-        //         Event::KeyDown {
-        //             keycode: Some(Keycode::S),
-        //             ..
-        //         } => {
-        //             // cpu.mem_write(0xff, 0x73);
-        //         }
-        //         Event::KeyDown {
-        //             keycode: Some(Keycode::A),
-        //             ..
-        //         } => {
-        //             // cpu.mem_write(0xff, 0x61);
-        //         }
-        //         Event::KeyDown {
-        //             keycode: Some(Keycode::D),
-        //             ..
-        //         } => {
-        //             // cpu.mem_write(0xff, 0x64);
-        //         }
-        //         _ => { /* do nothing */ }
-        //     }
-        // }
+        for event in self.1.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => {
+                    std::process::exit(0)
+                },
+                Event::KeyDown {
+                    keycode: Some(Keycode::W),
+                    ..
+                } => {
+                    nes.inject_memory_value(self.0, 0x77);
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::S),
+                    ..
+                } => {
+                    nes.inject_memory_value(self.0, 0x73);
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::A),
+                    ..
+                } => {
+                    nes.inject_memory_value(self.0, 0x61);
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::D),
+                    ..
+                } => {
+                    nes.inject_memory_value(self.0, 0x64);
+                }
+                _ => {
+                    // ignore other keys
+                }
+            }
+        }
     }
 }
 
@@ -301,49 +302,86 @@ pub struct SimpleScreen<'a> {
 }
 
 impl<'a> SimpleScreen<'a> {
-    pub fn new(mapped_address: u16, texture: Texture<'a>,
-    canvas: &'a mut Canvas<Window>,) -> SimpleScreen<'a> {
-        let last_screen_state = vec![0u8;32*32];
+    pub fn new(
+        mapped_address: u16,
+        texture: Texture<'a>,
+        canvas: &'a mut Canvas<Window>,
+    ) -> SimpleScreen<'a> {
+        let last_screen_state = vec![0u8; 32 * 32];
         SimpleScreen {
             mapped_address,
             last_screen_state,
             texture,
-            canvas
+            canvas,
         }
+    }
+    pub fn draw_screen(&mut self, nes: &Nes) -> Vec<u8> {
+        let mut frame = Vec::with_capacity(32*32*3);
+        for i in 0..(32*32) {
+            let color = nes.extract_memory(self.mapped_address + i);
+            if color == 4 {
+                // should be "green"
+                frame.push(0);
+                frame.push(255);
+                frame.push(0);
+            } else if color == 3 {
+                // should be "red"
+                frame.push(255);
+                frame.push(0);
+                frame.push(0);
+            } else {
+                // draw background
+                frame.push(0);
+                frame.push(0);
+                frame.push(0);
+            }
+        }
+        frame
     }
 }
 
 impl<'a> NesPeripheral for SimpleScreen<'a> {
-    fn init(&mut self, nes: &mut Nes) {
-        
-    }
+    fn init(&mut self, _nes: &mut Nes) {}
     fn tick(&mut self, nes: &mut Nes) {
-        if memory_changed(nes, self.mapped_address, self.last_screen_state.len() as u16, &self.last_screen_state) {
-            self.texture.update(None, &self.last_screen_state, 32 * 3).unwrap();
+        if memory_changed(
+            nes,
+            self.mapped_address,
+            self.last_screen_state.len() as u16,
+            &self.last_screen_state,
+        ) {
+            let pixel_data = self.draw_screen(nes);
+            self.texture
+                .update(None, &pixel_data, 32 * 3)
+                .unwrap();
             self.canvas.copy(&self.texture, None, None).unwrap();
             self.canvas.present();
         }
-        
-        // init frame
-        for x in 0..32 {
-            for y in 0..32 {
-                let x = x - 1;
-                let y = y - 1;
-                let color = nes.extract_memory(self.mapped_address + x * 32 + y);
-                if color == 4 {
-                    // should be "green"
-                } else if color == 3 {
-                    // should be "red"
-                } else {
-                    // draw background
-                }
-            }
-        }
+
+        // // init frame
+        // for x in 0..32 {
+        //     for y in 0..32 {
+        //         let x = x - 1;
+        //         let y = y - 1;
+        //         let color = nes.extract_memory(self.mapped_address + x * 32 + y);
+        //         if color == 4 {
+        //             // should be "green"
+        //         } else if color == 3 {
+        //             // should be "red"
+        //         } else {
+        //             // draw background
+        //         }
+        //     }
+        // }
         // wrap up frame
     }
-    fn cleanup(&mut self, nes: &mut Nes) {}
+    fn cleanup(&mut self, _nes: &mut Nes) {}
 }
 
 fn memory_changed(nes: &Nes, address: u16, size: u16, old: &[u8]) -> bool {
-    unimplemented!()
+    for i in 0..size {
+        if nes.extract_memory(i + address) != old[i as usize] {
+            return false;
+        }
+    }
+    true
 }
