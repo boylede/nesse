@@ -1,5 +1,5 @@
-use std::fmt::Write;
 use std::collections::HashMap;
+use std::fmt::Write;
 
 #[cfg(test)]
 mod test;
@@ -37,7 +37,7 @@ pub struct Nes<'a> {
     cartridge: Option<NesCart>,
     gamepads: [Option<NesGamepad>; 8],
     // todo: switch to enum_dispatch
-    peripherals: Option<Vec<&'a mut NesPeripheral >>,
+    peripherals: Option<Vec<&'a mut NesPeripheral>>,
 }
 
 impl<'a> Nes<'a> {
@@ -106,7 +106,7 @@ impl<'a> Nes<'a> {
     pub fn dump_stack(&self) -> String {
         let sp = self.cpu.registers.sp as u16 + STACK_OFFSET;
         let mut depth = self.ram.debug_stack_depth;
-        let mut stack = format!{"{}: ", depth};
+        let mut stack = format! {"{}: ", depth};
         while depth > 0 {
             let value = self.ram.get(sp + depth);
             write!(stack, "{:x} / ", value).unwrap();
@@ -158,7 +158,7 @@ impl<'a> Nes<'a> {
     /// returns the value at memory\[pc++\]
     pub fn peek_pc(&mut self) -> u8 {
         let value = self.ram.get(self.cpu.registers.pc);
-        
+
         value
     }
     pub fn insert_cartridge(&mut self, cart: NesCart) {
@@ -226,8 +226,6 @@ pub struct Nes2a03 {
     registers: NesRegisters,
 }
 
-
-
 #[derive(Default, Clone, PartialEq, Eq, Debug)]
 pub struct NesRegisters {
     /// program counter
@@ -262,7 +260,7 @@ impl NesRegisters {
         self.y = 0;
         self.sp = STACK_INITIAL;
         // self.debug_stack_depth = 0;
-        self.p = 0b100100; 
+        self.p = 0b100100;
         // self.pc = todo: figure out how i want to handle multiple options here
     }
     pub fn status_zero(&self) -> bool {

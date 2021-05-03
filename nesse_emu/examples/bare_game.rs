@@ -356,23 +356,6 @@ impl<'a> NesPeripheral for SimpleScreen<'a> {
             self.canvas.copy(&self.texture, None, None).unwrap();
             self.canvas.present();
         }
-
-        // // init frame
-        // for x in 0..32 {
-        //     for y in 0..32 {
-        //         let x = x - 1;
-        //         let y = y - 1;
-        //         let color = nes.extract_memory(self.mapped_address + x * 32 + y);
-        //         if color == 4 {
-        //             // should be "green"
-        //         } else if color == 3 {
-        //             // should be "red"
-        //         } else {
-        //             // draw background
-        //         }
-        //     }
-        // }
-        // wrap up frame
     }
     fn cleanup(&mut self, _nes: &mut Nes) {}
 }
