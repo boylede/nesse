@@ -66,6 +66,13 @@ impl<'a> Nes<'a> {
     pub fn extract_memory(&self, address: u16) -> u8 {
         self.ram.get(address)
     }
+    pub fn extract_memory_region(&self, address: u16, size: u16) -> Vec<u8> {
+        let mut v = Vec::with_capacity(size as usize);
+        for i in 0..size {
+            v.push(self.ram.get(i + address));
+        }
+        v
+    }
     pub fn with_initial_memory(mut self, address: u16, memory: &[u8]) -> Nes<'a> {
         self.ram.set_region(address, memory);
         self
@@ -413,13 +420,18 @@ impl NesRam {
             }
             11 => {
                 // IndexedIndirect
-                unimplemented!()
+                // The address of the table is taken from the instruction and the X register added to it (with zero page wrap around) to give the location of the least significant byte of the target address.
+                let table = self.get(registers.pc);
+                registers.pc += 1;
+                let base = table.wrapping_add(registers.x) as u16;
+                let lo = self.get(base) as u16;
+                let hi = self.get(base.wrapping_add(1)) as u16;
+                (hi << 8) | lo
             }
             12 => {
                 // IndirectIndexed
-                // let instruction = self.get(registers.pc - 1);
-                // println!("{:x} requested indirectindexed addressing", instruction);
                 let base = self.get(registers.pc);
+                registers.pc += 1;
                 let lo = self.get(base as u16);
                 let hi = self.get(base.wrapping_add(1) as u16);
                 (hi as u16) << 8 | (lo as u16).wrapping_add(registers.y as u16)
