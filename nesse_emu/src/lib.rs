@@ -585,7 +585,7 @@ impl NesRam {
         }
     }
     pub fn stack_push(&mut self, sp: &mut u8, value: u8) {
-        println!("pushing {:X} to stack", value);
+        // println!("pushing {:X} to stack", value);
         self.set(*sp as u16 + STACK_OFFSET, value);
         *sp = sp.wrapping_sub(1);
         self.debug_stack_depth += 1;
