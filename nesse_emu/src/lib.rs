@@ -42,13 +42,12 @@ pub struct Nes<'a> {
 
 impl<'a> Nes<'a> {
     pub fn load_rom(&mut self, rom: &[u8]) {
+        NesCart::from_slice(rom);
         unimplemented!()
     }
     pub fn init(&mut self) {
         self.cpu.registers.reset();
-        // todo: implement cartridge memory range
-        // self.set_pc(self.ram.get_short(INITIAL_PC_LOCATION));
-        self.set_pc(0x600);
+        self.set_pc(self.ram.get_short(INITIAL_PC_LOCATION));
         if let Some(mut peripherals) = self.peripherals.take() {
             for p in peripherals.iter_mut() {
                 p.init(self);
@@ -169,17 +168,129 @@ impl<'a> Nes<'a> {
         value
     }
     pub fn insert_cartridge(&mut self, cart: NesCart) {
-        unimplemented!()
+        if let None = self.cartridge {
+            self.cartridge = Some(cart);
+        } else {
+            //todo: do we need to unload the existing cart before discarding?
+            unimplemented!()
+        }
     }
 }
 
-#[derive(Default)]
 pub struct NesCart {
-    memory: Vec<u8>,
-    memory_base: u16,
+    pub header: NesCartHeader,
+    trainer: Option<Vec<u8>>,
+    prg_rom: Vec<u8>,
+    chr_rom: Vec<u8>,
+    prg_ram: Vec<u8>
+}
+
+pub struct NesCartHeader {
+    mapper_id: u8,
+    mirroring: u8,
+    four_screen: bool,
+    battery: bool,
 }
 
 impl NesCart {
+    pub fn from_slice(bytes: &[u8]) -> Option<NesCart> {
+        let buffer = bytes.to_vec();
+        let header: Vec<u8> = buffer.iter().take(16).copied().collect();
+        // let mut buffer: [u8; 16] = [0u8; 16];
+        // buffer.copy_from_slice(&bytes[0..16]);
+        let sigil: [u8; 4] = [header[0], header[1], header[2], header[3]];
+        if sigil != [0x4e, 0x45, 0x53, 0x1a] {
+            println!("nes rom sigil not found");
+            return None;
+        }
+        let rom_count = header[4];
+        let vrom_count = header[5];
+        let control_bytes: [u8; 2] = [header[6], header[7]];
+        let ram_count = header[8];
+        let reserved = header[9];
+        let reserved_zeros: [u8; 6] = [
+            header[10], header[11], header[12], header[13], header[14], header[15],
+        ];
+        if reserved_zeros != [0, 0, 0, 0, 0, 0] {
+            println!("unexpected values reserved area of rom header");
+            return None;
+        }
+        println!("number of 16kB rom banks: {}", rom_count);
+        println!("number of 8kB vrom banks: {}", vrom_count);
+        // flags in control byte 0 (aka 1 in references)
+        const FLAG_MIRRORING :u8 = 1 << 0;
+        const FLAG_BBRAM :u8 = 1 << 1;
+        const FLAG_TRAINER :u8 = 1 << 2;
+        const FLAG_FOUR_SCREEN :u8 = 1 << 3;
+        // flags in control byte 1 (aka 2 in references)
+        const FLAG_RESERVED_0 :u8 = 1 << 0;
+        const FLAG_RESERVED_1 :u8 = 1 << 1;
+        const FLAG_RESERVED_2 :u8 = 1 << 2;
+        const FLAG_RESERVED_3 :u8 = 1 << 3; // one if iNES2.0
+        
+        let mapper_id = {
+            let upper = control_bytes[1] & 0xf0;
+            let lower = control_bytes[0] & 0xf0;
+            upper  | lower >> 4
+        };
+
+        
+        let mirroring = control_bytes[0] & FLAG_MIRRORING;
+        println!("mirroring mode: {}", mirroring);
+        let battery = control_bytes[0] & FLAG_BBRAM > 0; // at 0x6000..0x7fff
+        println!("has battery: {}", battery);
+        let has_trainer = control_bytes[0] & FLAG_TRAINER > 0;
+        println!("has trainer: {}", has_trainer);
+        let four_screen = (control_bytes[0] & FLAG_FOUR_SCREEN) > 0;
+        println!("uses four screen mirroring: {}", four_screen);
+        println!("expects mapper {}", mapper_id);
+        println!("number of 8kB ram banks: {}", ram_count);
+        println!("other byte: {:x}", reserved);
+
+        let unhandled_bits = FLAG_RESERVED_0 | FLAG_RESERVED_1 | FLAG_RESERVED_2 | FLAG_RESERVED_3;
+        let unhandled = control_bytes[1] & unhandled_bits;
+
+        if unhandled != 0 {
+            println!("has unexpected items in control byte 2, may be different file version: {:x}", unhandled);
+            return None;
+        }
+        let header = NesCartHeader {
+            mapper_id,
+            mirroring,
+            four_screen,
+            battery,
+        };
+        
+        let trainer = if has_trainer {
+            let t = buffer.iter().take(512).copied().collect();
+            Some(t)
+        } else {
+            None
+        };
+        let prg_rom_size = rom_count as usize * 16 * 1024;
+        let prg_rom: Vec<u8> = buffer.iter().take(prg_rom_size).copied().collect();
+        println!("retreived {} bytes for prg_rom", prg_rom.len());
+        let chr_rom_size = vrom_count as usize * 16 * 1024;
+        let chr_rom: Vec<u8> = buffer.iter().take(chr_rom_size).copied().collect();
+        println!("retreived {} bytes for chr_rom", chr_rom.len());
+
+
+        let prg_ram = if battery {
+            // todo: do we load in battery-backed ram from another file?
+            unimplemented!()
+        } else {
+            Vec::with_capacity(8*1024*ram_count as usize)
+        };
+
+        // unimplemented!();
+        Some(NesCart {
+            header,
+            trainer,
+            prg_rom,
+            chr_rom,
+            prg_ram,
+        })
+    }
     pub fn simple(start_addrss: u16, rom: &[u8]) -> NesCart {
         unimplemented!()
     }
