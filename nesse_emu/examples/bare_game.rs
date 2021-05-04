@@ -259,8 +259,8 @@ impl NesPeripheral for Spy {
         if let Some((_, label)) = LABEL_LIST.iter().find(|(address, _)| *address == pc) {
             println!("LABEL {} at {:x}", label, pc);
         }
-        // print!("{:2x} ## {:?} ", next_opcode, regs);
-        // println!("{}", stack);
+        print!("{:2x} ## {:?} ", next_opcode, regs);
+        println!("{}", stack);
     }
 }
 

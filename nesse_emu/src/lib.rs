@@ -47,7 +47,7 @@ impl<'a> Nes<'a> {
     }
     pub fn init(&mut self) {
         self.cpu.registers.reset();
-        self.set_pc(self.ram.get_short(INITIAL_PC_LOCATION));
+        self.set_pc(self.get_short(INITIAL_PC_LOCATION));
         if let Some(mut peripherals) = self.peripherals.take() {
             for p in peripherals.iter_mut() {
                 p.init(self);
@@ -63,17 +63,17 @@ impl<'a> Nes<'a> {
         }
     }
     pub fn extract_memory(&self, address: u16) -> u8 {
-        self.ram.get(address)
+        self.get(address)
     }
     pub fn extract_memory_region(&self, address: u16, size: u16) -> Vec<u8> {
         let mut v = Vec::with_capacity(size as usize);
         for i in 0..size {
-            v.push(self.ram.get(i + address));
+            v.push(self.get(i + address));
         }
         v
     }
     pub fn with_initial_memory(mut self, address: u16, memory: &[u8]) -> Nes<'a> {
-        self.ram.set_region(address, memory);
+        self.set_region(address, memory);
         self
     }
     pub fn with_peripheral(mut self, p: &'a mut NesPeripheral) -> Nes<'a> {
@@ -97,32 +97,134 @@ impl<'a> Nes<'a> {
             .enumerate()
             .for_each(|(i, op)| {
                 let index = self.cpu.registers.pc + i as u16;
-                self.ram.set(index, op);
+                self.set(index, op);
             });
     }
     pub fn dump_registers(&self) -> NesRegisters {
         self.cpu.registers.clone()
     }
     pub fn inject_memory_value(&mut self, address: u16, value: u8) {
-        self.ram.set(address, value);
+        self.set(address, value);
     }
     pub fn inject_registers(&mut self, regs: NesRegisters) {
         self.cpu.registers = regs;
     }
     pub fn dump_stack(&self) -> String {
         let sp = self.cpu.registers.sp as u16 + STACK_OFFSET;
-        let mut depth = self.ram.debug_stack_depth;
+        let mut depth = ((self.cpu.registers.sp ^ 0xff) >> 1) as u16;
         let mut stack = format! {"{}: ", depth};
         while depth > 0 {
-            let value = self.ram.get(sp + depth);
+            let value = self.get(sp + depth);
             write!(stack, "{:x} / ", value).unwrap();
             depth -= 1;
         }
         stack
     }
     fn get_address_from_mode(&mut self, mode: u8) -> u16 {
-        self.ram
-            .get_address_from_mode(mode, &mut self.cpu.registers)
+        match mode {
+            0 => {
+                // Implicit
+                panic!("Should not request a get with implicit address mode.");
+            }
+            1 => {
+                // Accumulator
+                panic!("Should not request a get with accumulator address mode.");
+            }
+            2 => {
+                // Immediate
+                let value = self.cpu.registers.pc;
+                self.cpu.registers.pc += 1;
+                value
+            }
+            3 => {
+                // ZeroPage
+                let value = self.get(self.cpu.registers.pc) as u16;
+                self.cpu.registers.pc += 1;
+                value
+            }
+            4 => {
+                // ZeroPageX
+                let base = self.get(self.cpu.registers.pc);
+                self.cpu.registers.pc += 1;
+                // todo: is this behavior correct? will wrap around zero page
+                base.wrapping_add(self.cpu.registers.x) as u16
+            }
+            5 => {
+                // ZeroPageY
+                let base = self.get(self.cpu.registers.pc);
+                self.cpu.registers.pc += 1;
+                // todo: is this wrap intended before the cast to u16 or after
+                base.wrapping_add(self.cpu.registers.y) as u16
+            }
+            6 => {
+                // Relative
+                let base = self.get(self.cpu.registers.pc);
+                self.cpu.registers.pc += 1;
+                base as u16
+            }
+            7 => {
+                // Absolute
+                let value = self.cpu.registers.pc;
+                self.cpu.registers.pc += 2; // skips two bytes since pointers are a two byte value
+                value
+            }
+            8 => {
+                // AbsoluteX
+                unimplemented!()
+            }
+            9 => {
+                // AbsoluteY
+                unimplemented!()
+            }
+            10 => {
+                // Indirect
+                unimplemented!()
+            }
+            11 => {
+                // IndexedIndirect
+                // The address of the table is taken from the instruction and the X register added to it (with zero page wrap around) to give the location of the least significant byte of the target address.
+                let table = self.get(self.cpu.registers.pc);
+                self.cpu.registers.pc += 1;
+                let base = table.wrapping_add(self.cpu.registers.x) as u16;
+                let lo = self.get(base) as u16;
+                let hi = self.get(base.wrapping_add(1)) as u16;
+                (hi << 8) | lo
+            }
+            12 => {
+                // IndirectIndexed
+                let base = self.get(self.cpu.registers.pc);
+                self.cpu.registers.pc += 1;
+                let lo = self.get(base as u16);
+                let hi = self.get(base.wrapping_add(1) as u16);
+                (hi as u16) << 8 | (lo as u16).wrapping_add(self.cpu.registers.y as u16)
+            }
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn stack_push(&mut self, value: u8) {
+        let mut sp = self.cpu.registers.sp;
+        self.set(sp as u16 + STACK_OFFSET, value);
+        sp = sp.wrapping_sub(1);
+        self.cpu.registers.sp = sp;
+    }
+    pub fn stack_pop(&mut self) -> u8 {
+        let mut sp = self.cpu.registers.sp;
+        sp = sp.wrapping_add(1);
+        let value = self.get(sp as u16 + STACK_OFFSET);
+        self.cpu.registers.sp = sp;
+        value
+    }
+    pub fn stack_push_short(&mut self, value: u16) {
+        self.stack_push( (value & 0xff) as u8);
+        self.stack_push( ((value >> 8) & 0xff) as u8);
+    }
+    pub fn stack_pop_short(&mut self) -> u16 {
+        let high = self.stack_pop() as u16;
+        let low = self.stack_pop() as u16;
+        let value = (high << 8) | low;
+        value
     }
     /// steps into one instruction. returns the number of cycles consumed
     pub fn step(&mut self) -> usize {
@@ -163,7 +265,7 @@ impl<'a> Nes<'a> {
     }
     /// returns the value at memory\[pc++\]
     pub fn peek_pc(&mut self) -> u8 {
-        let value = self.ram.get(self.cpu.registers.pc);
+        let value = self.get(self.cpu.registers.pc);
 
         value
     }
@@ -173,6 +275,41 @@ impl<'a> Nes<'a> {
         } else {
             //todo: do we need to unload the existing cart before discarding?
             unimplemented!()
+        }
+    }
+}
+
+impl<'a> AddressableMemory for Nes<'a> {
+    fn bounds(&self) -> (u16,u16) {
+        (0,0xffff)
+    }
+    fn set(&mut self, address: u16, value: u8) {
+        if address < 0x2000 {
+            // nes base ram
+            self.ram.set(address, value);
+        } else if address < 0x4020 {
+            // other hardware
+            unimplemented!()
+        } else {
+            // other addresses handled by cartridge
+            if let Some(cart) = &mut self.cartridge {
+                cart.set(address, value);
+            }
+        }
+    }
+    fn get(&self, address: u16) -> u8 {
+        if address < 0x2000 {
+            self.ram.get(address)
+        } else if address < 0x4020 {
+            // other hardware
+            unimplemented!()
+        } else {
+            // other addresses handled by cartridge
+            if let Some(cart) = &self.cartridge {
+                cart.get(address)
+            } else {
+                0
+            }
         }
     }
 }
@@ -296,6 +433,41 @@ impl NesCart {
         unimplemented!()
     }
 }
+
+impl AddressableMemory for NesCart {
+    fn bounds(&self) -> (u16,u16) {
+        (0x4020,0xffff)
+    }
+    fn set(&mut self, address: u16, value: u8) {
+        // todo: bounds checks
+        if address < 0x6000 {
+            // special depending on cartridge generation
+            unimplemented!()
+        } else if address < 0x8000 {
+            // optional ram, for e.g. zelda
+            unimplemented!()
+        } else {
+            // cartridge rom
+            // todo: does any cartridge even try?
+            unimplemented!()
+        }
+    }
+    fn get(&self, address: u16) -> u8 {
+        // todo: bounds checks
+        if address < 0x6000 {
+            // special depending on cartridge generation
+            unimplemented!()
+        } else if address < 0x8000 {
+            // optional ram, for e.g. zelda
+            unimplemented!()
+        } else {
+            // cartridge rom
+            let rom_address = address - 0x8000;
+            self.prg_rom[rom_address as usize]
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct CartridgeRom {
     // todo: a better way to do this so that we don't have to store the whole address space but still don't have a constant size
@@ -477,12 +649,41 @@ impl NesRegisters {
 #[derive(Default)]
 pub struct Nes2c02;
 
-/// this will manage all memory accesses, including ones which do not go to the onboard ram chip
-/// todo: may reorganize to make more sense
+pub trait AddressableMemory {
+    fn bounds(&self) -> (u16,u16);
+    fn bounds_check(&self, address: u16) -> bool {
+        let bounds = self.bounds();
+        address >= bounds.0 && address < bounds.1
+    }
+    fn set(&mut self, address: u16, value: u8);
+    fn get(&self, address: u16) -> u8;
+    fn set_region(&mut self, address: u16, bytes: &[u8]) {
+        for (offset, value) in bytes.iter().enumerate() {
+            self.set(address + offset as u16, *value);
+        }
+    }
+    fn get_region(&self, address: u16, size: u16) -> Vec<u8> {
+        let mut v = Vec::with_capacity(size as usize);
+        for i in 0..size {
+            v.push(self.get(i + address));
+        }
+        v
+    }
+    fn get_short(&self, address: u16) -> u16 {
+        let low = self.get(address) as u16;
+        let high = self.get(address + 1) as u16;
+        high << 8 | low
+    }
+    fn set_short(&mut self, address: u16, value: u16) {
+        let low = (value & 0xff) as u8;
+        let high = ((value >> 8) & 0xff) as u8;
+        self.set(address, low);
+        self.set(address + 1, high);
+    }
+}
+
 pub struct NesRam {
     inner: [u8; 2048],
-    rom: CartridgeRom,
-    debug_stack_depth: u16,
 }
 
 /// todo: construct this more carefully
@@ -490,174 +691,28 @@ impl Default for NesRam {
     fn default() -> Self {
         NesRam {
             inner: [0u8; 2048],
-            rom: CartridgeRom::default(),
-            debug_stack_depth: 0,
         }
     }
 }
 
-impl NesRam {
-    pub fn set_region(&mut self, start: u16, bytes: &[u8]) {
-        for (offset, value) in bytes.iter().enumerate() {
-            self.set(start + offset as u16, *value);
+impl AddressableMemory for NesRam {
+    fn bounds(&self) -> (u16,u16) {
+        (0,0x2000)
+    }
+    fn set(&mut self, address: u16, value: u8) {
+        if self.bounds_check(address)  {
+            self.inner[address as usize] = value;
         }
     }
-    pub fn get_address_from_mode(&self, mode: u8, registers: &mut NesRegisters) -> u16 {
-        match mode {
-            0 => {
-                // Implicit
-                panic!("Should not request a get with implicit address mode.");
-            }
-            1 => {
-                // Accumulator
-                panic!("Should not request a get with accumulator address mode.");
-            }
-            2 => {
-                // Immediate
-                let value = registers.pc;
-                registers.pc += 1;
-                value
-            }
-            3 => {
-                // ZeroPage
-                let value = self.get(registers.pc) as u16;
-                registers.pc += 1;
-                value
-            }
-            4 => {
-                // ZeroPageX
-                let base = self.get(registers.pc);
-                registers.pc += 1;
-                // todo: is this behavior correct? will wrap around zero page
-                base.wrapping_add(registers.x) as u16
-            }
-            5 => {
-                // ZeroPageY
-                let base = self.get(registers.pc);
-                registers.pc += 1;
-                // todo: is this wrap intended before the cast to u16 or after
-                base.wrapping_add(registers.y) as u16
-            }
-            6 => {
-                // Relative
-                let base = self.get(registers.pc);
-                registers.pc += 1;
-                base as u16
-            }
-            7 => {
-                // Absolute
-                let value = registers.pc;
-                registers.pc += 2; // skips two bytes since pointers are a two byte value
-                value
-            }
-            8 => {
-                // AbsoluteX
-                unimplemented!()
-            }
-            9 => {
-                // AbsoluteY
-                unimplemented!()
-            }
-            10 => {
-                // Indirect
-                unimplemented!()
-            }
-            11 => {
-                // IndexedIndirect
-                // The address of the table is taken from the instruction and the X register added to it (with zero page wrap around) to give the location of the least significant byte of the target address.
-                let table = self.get(registers.pc);
-                registers.pc += 1;
-                let base = table.wrapping_add(registers.x) as u16;
-                let lo = self.get(base) as u16;
-                let hi = self.get(base.wrapping_add(1)) as u16;
-                (hi << 8) | lo
-            }
-            12 => {
-                // IndirectIndexed
-                let base = self.get(registers.pc);
-                registers.pc += 1;
-                let lo = self.get(base as u16);
-                let hi = self.get(base.wrapping_add(1) as u16);
-                (hi as u16) << 8 | (lo as u16).wrapping_add(registers.y as u16)
-            }
-            _ => {
-                unimplemented!()
-            }
-        }
-    }
-    pub fn stack_push(&mut self, sp: &mut u8, value: u8) {
-        // println!("pushing {:X} to stack", value);
-        self.set(*sp as u16 + STACK_OFFSET, value);
-        *sp = sp.wrapping_sub(1);
-        self.debug_stack_depth += 1;
-    }
-    pub fn stack_pop(&mut self, sp: &mut u8) -> u8 {
-        *sp = sp.wrapping_add(1);
-        let value = self.get(*sp as u16 + STACK_OFFSET);
-        self.debug_stack_depth -= 1;
-        // println!("popped {:X} from stack", value);
-        value
-    }
-    pub fn stack_push_short(&mut self, sp: &mut u8, value: u16) {
-        // println!("pushing short {:x} to stack", value);
-        self.stack_push(sp, (value & 0xff) as u8);
-        self.stack_push(sp, ((value >> 8) & 0xff) as u8);
-    }
-    pub fn stack_pop_short(&mut self, sp: &mut u8) -> u16 {
-        let high = self.stack_pop(sp) as u16;
-        let low = self.stack_pop(sp) as u16;
-        let value = (high << 8) | low;
-        // println!("popped short {:x} from stack", value);
-        value
-    }
-    pub fn load_cartridge(&mut self, cartridge: NesCart) {
-        unimplemented!()
-    }
-    pub fn set(&mut self, index: u16, value: u8) {
-        // todo: hardware mapping redirect
-        if index < 0x2000 {
-            self.inner[index as usize] = value;
-        } else if index < 0x4020 {
-            // other hardware
-        } else if index < 0x6000 {
-            // special depending on cartridge generation
-        } else if index < 0x8000 {
-            // option ram, for e.g. zelda
+    fn get(&self, address: u16) -> u8 {
+        if self.bounds_check(address)  {
+            self.inner[address as usize]
         } else {
-            // cartridge rom
+            0
         }
-    }
-    pub fn get(&self, index: u16) -> u8 {
-        // todo: bounds checks
-        // todo: hardware mapping redirect
-        if index < 0x2000 {
-            self.inner[index as usize]
-        } else if index < 0x4020 {
-            // other hardware
-            unimplemented!()
-        } else if index < 0x6000 {
-            // special depending on cartridge generation
-            unimplemented!()
-        } else if index < 0x8000 {
-            // option ram, for e.g. zelda
-            unimplemented!()
-        } else {
-            // cartridge rom
-            unimplemented!()
-        }
-    }
-    pub fn get_short(&self, index: u16) -> u16 {
-        let low = self.get(index) as u16;
-        let high = self.get(index + 1) as u16;
-        high << 8 | low
-    }
-    pub fn set_short(&mut self, index: u16, value: u16) {
-        let low = (value & 0xff) as u8;
-        let high = ((value >> 8) & 0xff) as u8;
-        self.set(index, low);
-        self.set(index + 1, high);
     }
 }
+
 
 #[derive(Default)]
 pub struct Nes2a03Audio;

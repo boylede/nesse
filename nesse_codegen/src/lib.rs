@@ -71,7 +71,7 @@ pub fn generate_stub_opcode_implementations(known_opcodes: &Vec<NesOpcode>) -> T
         .map(|name| generate_opcode_stub(name))
         .collect();
     quote! {
-        use crate::Nes;
+        use crate::{Nes, AddressableMemory};
         #stubs
     }
 }
