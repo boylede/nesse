@@ -47,7 +47,9 @@ impl<'a> Nes<'a> {
     }
     pub fn init(&mut self) {
         self.cpu.registers.reset();
-        self.set_pc(self.get_short(INITIAL_PC_LOCATION));
+        let initial_pc = self.get_short(INITIAL_PC_LOCATION);
+        println!("setting pc to {:x}", initial_pc);
+        self.set_pc(initial_pc);
         if let Some(mut peripherals) = self.peripherals.take() {
             for p in peripherals.iter_mut() {
                 p.init(self);
@@ -463,52 +465,12 @@ impl AddressableMemory for NesCart {
         } else {
             // cartridge rom
             let rom_address = address - 0x8000;
+            println!("getting cartridge rom address {:x} translates to {:x}", address, rom_address);
             self.prg_rom[rom_address as usize]
         }
     }
 }
 
-#[derive(Default)]
-pub struct CartridgeRom {
-    // todo: a better way to do this so that we don't have to store the whole address space but still don't have a constant size
-    inner: HashMap<u16, u8>,
-}
-
-impl CartridgeRom {
-    pub fn from_vec(bytes: Vec<u8>) -> CartridgeRom {
-        CartridgeRom {
-            inner: bytes
-                .iter()
-                .enumerate()
-                .map(|(i, v)| (i as u16, *v))
-                .collect(),
-        }
-    }
-    pub fn get(&self, index: u16) -> u8 {
-        // todo: bounds checks
-        // todo: hardware mapping redirect
-        if index < 0x2000 {
-            unimplemented!() // should be the cpu's ram
-        } else if index < 0x4020 {
-            // other hardware
-            unimplemented!()
-        } else if index < 0x6000 {
-            // special depending on cartridge generation
-            unimplemented!()
-        } else if index < 0x8000 {
-            // option ram, for e.g. zelda
-            unimplemented!()
-        } else {
-            // cartridge rom
-            self.inner.get(&index).copied().unwrap_or(0)
-        }
-    }
-    pub fn get_short(&self, index: u16) -> u16 {
-        let low = self.get(index) as u16;
-        let high = self.get(index + 1) as u16;
-        high << 8 | low
-    }
-}
 
 /// NES cpu instance
 #[derive(Default, Clone)]
