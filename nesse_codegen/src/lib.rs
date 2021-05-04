@@ -113,7 +113,7 @@ pub fn generate_jumplist(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
                 pub cycles: u8,
                 pub bytes: u8,
             }
-            
+
             #[test]
             pub fn check_jumptable_entry_size() {
                 let entry_size = std::mem::size_of::<Opcode>();

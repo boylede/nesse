@@ -182,7 +182,7 @@ pub struct NesCart {
     trainer: Option<Vec<u8>>,
     prg_rom: Vec<u8>,
     chr_rom: Vec<u8>,
-    prg_ram: Vec<u8>
+    prg_ram: Vec<u8>,
 }
 
 pub struct NesCartHeader {
@@ -218,23 +218,22 @@ impl NesCart {
         println!("number of 16kB rom banks: {}", rom_count);
         println!("number of 8kB vrom banks: {}", vrom_count);
         // flags in control byte 0 (aka 1 in references)
-        const FLAG_MIRRORING :u8 = 1 << 0;
-        const FLAG_BBRAM :u8 = 1 << 1;
-        const FLAG_TRAINER :u8 = 1 << 2;
-        const FLAG_FOUR_SCREEN :u8 = 1 << 3;
+        const FLAG_MIRRORING: u8 = 1 << 0;
+        const FLAG_BBRAM: u8 = 1 << 1;
+        const FLAG_TRAINER: u8 = 1 << 2;
+        const FLAG_FOUR_SCREEN: u8 = 1 << 3;
         // flags in control byte 1 (aka 2 in references)
-        const FLAG_RESERVED_0 :u8 = 1 << 0;
-        const FLAG_RESERVED_1 :u8 = 1 << 1;
-        const FLAG_RESERVED_2 :u8 = 1 << 2;
-        const FLAG_RESERVED_3 :u8 = 1 << 3; // one if iNES2.0
-        
+        const FLAG_RESERVED_0: u8 = 1 << 0;
+        const FLAG_RESERVED_1: u8 = 1 << 1;
+        const FLAG_RESERVED_2: u8 = 1 << 2;
+        const FLAG_RESERVED_3: u8 = 1 << 3; // one if iNES2.0
+
         let mapper_id = {
             let upper = control_bytes[1] & 0xf0;
             let lower = control_bytes[0] & 0xf0;
-            upper  | lower >> 4
+            upper | lower >> 4
         };
 
-        
         let mirroring = control_bytes[0] & FLAG_MIRRORING;
         println!("mirroring mode: {}", mirroring);
         let battery = control_bytes[0] & FLAG_BBRAM > 0; // at 0x6000..0x7fff
@@ -251,7 +250,10 @@ impl NesCart {
         let unhandled = control_bytes[1] & unhandled_bits;
 
         if unhandled != 0 {
-            println!("has unexpected items in control byte 2, may be different file version: {:x}", unhandled);
+            println!(
+                "has unexpected items in control byte 2, may be different file version: {:x}",
+                unhandled
+            );
             return None;
         }
         let header = NesCartHeader {
@@ -260,7 +262,7 @@ impl NesCart {
             four_screen,
             battery,
         };
-        
+
         let trainer = if has_trainer {
             let t = buffer.iter().take(512).copied().collect();
             Some(t)
@@ -274,12 +276,11 @@ impl NesCart {
         let chr_rom: Vec<u8> = buffer.iter().take(chr_rom_size).copied().collect();
         println!("retreived {} bytes for chr_rom", chr_rom.len());
 
-
         let prg_ram = if battery {
             // todo: do we load in battery-backed ram from another file?
             unimplemented!()
         } else {
-            Vec::with_capacity(8*1024*ram_count as usize)
+            Vec::with_capacity(8 * 1024 * ram_count as usize)
         };
 
         // unimplemented!();
@@ -594,9 +595,11 @@ impl NesRam {
         *sp = sp.wrapping_add(1);
         let value = self.get(*sp as u16 + STACK_OFFSET);
         self.debug_stack_depth -= 1;
+        // println!("popped {:X} from stack", value);
         value
     }
     pub fn stack_push_short(&mut self, sp: &mut u8, value: u16) {
+        // println!("pushing short {:x} to stack", value);
         self.stack_push(sp, (value & 0xff) as u8);
         self.stack_push(sp, ((value >> 8) & 0xff) as u8);
     }

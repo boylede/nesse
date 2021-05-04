@@ -227,7 +227,6 @@ fn main() {
     let mut nes = Nes::default()
         .with_peripheral(&mut random)
         .with_peripheral(&mut input)
-        
         .with_peripheral(&mut screen)
         // .with_peripheral(&mut rate)
         // .with_peripheral(Box::new(PCPrinter))
@@ -249,9 +248,6 @@ impl NesPeripheral for RateLimiter {
     }
 }
 
-
-
-
 pub struct Spy;
 
 impl NesPeripheral for Spy {
@@ -260,7 +256,7 @@ impl NesPeripheral for Spy {
         let next_opcode = nes.peek_pc();
         let stack = nes.dump_stack();
         let pc = regs.get_pc();
-        if let Some((_,label)) = LABEL_LIST.iter().find(|(address, _)| *address == pc) {
+        if let Some((_, label)) = LABEL_LIST.iter().find(|(address, _)| *address == pc) {
             println!("LABEL {} at {:x}", label, pc);
         }
         // print!("{:2x} ## {:?} ", next_opcode, regs);
@@ -295,9 +291,7 @@ impl NesPeripheral for KeyboardInput {
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
-                } => {
-                    std::process::exit(0)
-                },
+                } => std::process::exit(0),
                 Event::KeyDown {
                     keycode: Some(Keycode::W),
                     ..
@@ -371,15 +365,13 @@ impl<'a> SimpleScreen<'a> {
     }
     pub fn update_window(&mut self, nes: &Nes) {
         let pixel_data = self.draw_frame(nes);
-        self.texture
-            .update(None, &pixel_data, 32 * 3)
-            .unwrap();
+        self.texture.update(None, &pixel_data, 32 * 3).unwrap();
         self.canvas.copy(&self.texture, None, None).unwrap();
         self.canvas.present();
     }
     pub fn draw_frame(&mut self, nes: &Nes) -> Vec<u8> {
-        let mut frame = Vec::with_capacity(32*32*3);
-        let buffer = nes.extract_memory_region(self.mapped_address, 32*32);
+        let mut frame = Vec::with_capacity(32 * 32 * 3);
+        let buffer = nes.extract_memory_region(self.mapped_address, 32 * 32);
         for color in buffer.iter() {
             let pixel = match color {
                 0 => Color::BLACK,
@@ -392,7 +384,7 @@ impl<'a> SimpleScreen<'a> {
                 7 | 14 => Color::YELLOW,
                 _ => Color::CYAN,
             };
-            let (r,g,b) = pixel.rgb();
+            let (r, g, b) = pixel.rgb();
             frame.push(r);
             frame.push(g);
             frame.push(b);
