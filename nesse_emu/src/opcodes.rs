@@ -1,7 +1,8 @@
-use crate::{Nes, AddressableMemory};
+use crate::{AddressableMemory, Nes};
 
 // generated in nesse_codegen
 pub mod jumptable;
+pub mod opcode_debug;
 
 // load & store family --------------------------------------------------------
 pub fn ldx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
@@ -209,8 +210,7 @@ pub fn jsr(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     // but subtract one from the value because its a quirk of the cpu evidently
     let return_address = nes.cpu.registers.pc + 2 - 1;
 
-    nes
-        .stack_push_short(return_address);
+    nes.stack_push_short(return_address);
     nes.cpu.registers.pc = jump_address;
     println!("jumping to subroutine {:x}", jump_address);
     cycles

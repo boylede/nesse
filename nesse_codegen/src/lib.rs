@@ -44,6 +44,49 @@ impl ToTokens for JumpListEntryGenerator {
     }
 }
 
+#[derive(PartialEq, PartialOrd, Eq, Ord)]
+struct OpcodeName(u8, String);
+
+impl ToTokens for OpcodeName {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let num = self.0;
+        let name = &self.1;
+        let toks = quote! {(#num, #name)}; //(exec:#ident, addressing:#addressing, cycles:#cycles, bytes:#bytes);
+        tokens.extend(toks);
+    }
+}
+
+pub fn generate_opcode_name_list(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
+    let mut opcodes = Vec::with_capacity(256);
+    for opcode_number in 0i32..256 {
+        if let Some(opcode) = known_opcodes
+            .iter()
+            .find(|op| op.opcode == opcode_number as u8)
+        {
+            let entry = OpcodeName(
+                opcode.opcode,
+                opcode.meta.name.to_string().to_ascii_uppercase(),
+            );
+            opcodes.push(entry);
+        } else {
+            let entry = OpcodeName(opcode_number as u8, "XXX".to_string());
+            opcodes.push(entry);
+        }
+    }
+
+    // let mut names: Vec<OpcodeName> = known_opcodes
+    //     .iter()
+    //     .map(|oc| OpcodeName(oc.opcode, oc.meta.name.to_string().to_ascii_uppercase()))
+    //     .collect();
+    // names.sort_unstable();
+    // names.dedup();
+    let name_list: TokenStream = opcodes.into_iter().map(|name| quote!(#name,)).collect();
+    let tokens = quote! {
+        pub const opcode_names: &[(u8, &str);256] = &[ #name_list ];
+    };
+    tokens
+}
+
 fn generate_opcode_stub(name: String) -> TokenStream {
     let ident = Ident::new(&name, Span::call_site());
     quote! {

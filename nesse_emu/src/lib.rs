@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 use std::fmt::Write;
+use std::io::Read;
 
 #[cfg(test)]
 mod test;
 
 mod opcodes;
+
+pub use opcodes::opcode_debug::opcode_names;
 
 pub mod prelude {
     // todo: select useful items to include in prelude
@@ -48,7 +51,7 @@ impl<'a> Nes<'a> {
     pub fn init(&mut self) {
         self.cpu.registers.reset();
         let initial_pc = self.get_short(INITIAL_PC_LOCATION);
-        println!("setting pc to {:x}", initial_pc);
+        // println!("setting pc to {:x}", initial_pc);
         self.set_pc(initial_pc);
         if let Some(mut peripherals) = self.peripherals.take() {
             for p in peripherals.iter_mut() {
@@ -219,8 +222,8 @@ impl<'a> Nes<'a> {
         value
     }
     pub fn stack_push_short(&mut self, value: u16) {
-        self.stack_push( (value & 0xff) as u8);
-        self.stack_push( ((value >> 8) & 0xff) as u8);
+        self.stack_push((value & 0xff) as u8);
+        self.stack_push(((value >> 8) & 0xff) as u8);
     }
     pub fn stack_pop_short(&mut self) -> u16 {
         let high = self.stack_pop() as u16;
@@ -231,6 +234,12 @@ impl<'a> Nes<'a> {
     /// steps into one instruction. returns the number of cycles consumed
     pub fn step(&mut self) -> usize {
         // println!("stepping");
+        if let Some(mut peripherals) = self.peripherals.take() {
+            for p in peripherals.iter_mut() {
+                p.tick(self);
+            }
+            self.peripherals.replace(peripherals);
+        }
         let opcode = self.peek_pc();
         self.cpu.registers.pc += 1;
         // let mut cycles = 0;
@@ -243,13 +252,6 @@ impl<'a> Nes<'a> {
         // todo: with the way we're doing this we can remove the cycles
         // from the instruction fn signature argument list
         // and not have that function return any values
-
-        if let Some(mut peripherals) = self.peripherals.take() {
-            for p in peripherals.iter_mut() {
-                p.tick(self);
-            }
-            self.peripherals.replace(peripherals);
-        }
         instruction.cycles as usize
     }
     pub fn run_until_nop(&mut self) -> usize {
@@ -282,8 +284,8 @@ impl<'a> Nes<'a> {
 }
 
 impl<'a> AddressableMemory for Nes<'a> {
-    fn bounds(&self) -> (u16,u16) {
-        (0,0xffff)
+    fn bounds(&self) -> (u16, u16) {
+        (0, 0xffff)
     }
     fn set(&mut self, address: u16, value: u8) {
         if address < 0x2000 {
@@ -332,9 +334,12 @@ pub struct NesCartHeader {
 }
 
 impl NesCart {
-    pub fn from_slice(bytes: &[u8]) -> Option<NesCart> {
-        let buffer = bytes.to_vec();
-        let header: Vec<u8> = buffer.iter().take(16).copied().collect();
+    pub fn from_slice(mut bytes: &[u8]) -> Option<NesCart> {
+        // let mut buffer = bytes.to_vec();
+
+        let mut header: [u8; 16] = [0u8; 16];
+        bytes.read_exact(&mut header).unwrap();
+
         // let mut buffer: [u8; 16] = [0u8; 16];
         // buffer.copy_from_slice(&bytes[0..16]);
         let sigil: [u8; 4] = [header[0], header[1], header[2], header[3]];
@@ -354,8 +359,8 @@ impl NesCart {
             println!("unexpected values reserved area of rom header");
             return None;
         }
-        println!("number of 16kB rom banks: {}", rom_count);
-        println!("number of 8kB vrom banks: {}", vrom_count);
+        // println!("number of 16kB rom banks: {}", rom_count);
+        // println!("number of 8kB vrom banks: {}", vrom_count);
         // flags in control byte 0 (aka 1 in references)
         const FLAG_MIRRORING: u8 = 1 << 0;
         const FLAG_BBRAM: u8 = 1 << 1;
@@ -374,16 +379,16 @@ impl NesCart {
         };
 
         let mirroring = control_bytes[0] & FLAG_MIRRORING;
-        println!("mirroring mode: {}", mirroring);
+        // println!("mirroring mode: {}", mirroring);
         let battery = control_bytes[0] & FLAG_BBRAM > 0; // at 0x6000..0x7fff
-        println!("has battery: {}", battery);
+                                                         // println!("has battery: {}", battery);
         let has_trainer = control_bytes[0] & FLAG_TRAINER > 0;
-        println!("has trainer: {}", has_trainer);
+        // println!("has trainer: {}", has_trainer);
         let four_screen = (control_bytes[0] & FLAG_FOUR_SCREEN) > 0;
-        println!("uses four screen mirroring: {}", four_screen);
-        println!("expects mapper {}", mapper_id);
-        println!("number of 8kB ram banks: {}", ram_count);
-        println!("other byte: {:x}", reserved);
+        // println!("uses four screen mirroring: {}", four_screen);
+        // println!("expects mapper {}", mapper_id);
+        // println!("number of 8kB ram banks: {}", ram_count);
+        // println!("other byte: {:x}", reserved);
 
         let unhandled_bits = FLAG_RESERVED_0 | FLAG_RESERVED_1 | FLAG_RESERVED_2 | FLAG_RESERVED_3;
         let unhandled = control_bytes[1] & unhandled_bits;
@@ -403,17 +408,25 @@ impl NesCart {
         };
 
         let trainer = if has_trainer {
-            let t = buffer.iter().take(512).copied().collect();
+            let mut t = vec![0u8; 512];
+            bytes.read_exact(&mut t).unwrap();
+            // println!("  -trainer = {} bytes", bytes.len());
             Some(t)
         } else {
             None
         };
+
         let prg_rom_size = rom_count as usize * 16 * 1024;
-        let prg_rom: Vec<u8> = buffer.iter().take(prg_rom_size).copied().collect();
-        println!("retreived {} bytes for prg_rom", prg_rom.len());
-        let chr_rom_size = vrom_count as usize * 16 * 1024;
-        let chr_rom: Vec<u8> = buffer.iter().take(chr_rom_size).copied().collect();
-        println!("retreived {} bytes for chr_rom", chr_rom.len());
+        // println!("getting {} bytes for prg_rom", prg_rom_size);
+        let mut prg_rom = vec![0u8; prg_rom_size];
+        bytes.read_exact(&mut prg_rom).unwrap();
+        // println!("retreived {} bytes for prg_rom", prg_rom.len());
+        // println!("  -prg_rom = {} bytes", bytes.len());
+        let chr_rom_size = vrom_count as usize * 8 * 1024;
+        let mut chr_rom = vec![0u8; chr_rom_size];
+        bytes.read_exact(&mut chr_rom).unwrap();
+        // println!("retreived {} bytes for chr_rom", chr_rom.len());
+        // println!("  -chr_rom = {} bytes", bytes.len());
 
         let prg_ram = if battery {
             // todo: do we load in battery-backed ram from another file?
@@ -437,8 +450,8 @@ impl NesCart {
 }
 
 impl AddressableMemory for NesCart {
-    fn bounds(&self) -> (u16,u16) {
-        (0x4020,0xffff)
+    fn bounds(&self) -> (u16, u16) {
+        (0x4020, 0xffff)
     }
     fn set(&mut self, address: u16, value: u8) {
         // todo: bounds checks
@@ -451,7 +464,10 @@ impl AddressableMemory for NesCart {
         } else {
             // cartridge rom
             // todo: does any cartridge even try?
-            unimplemented!()
+            println!(
+                "tried to set value {} at address {} in cartridge rom",
+                value, address
+            );
         }
     }
     fn get(&self, address: u16) -> u8 {
@@ -464,13 +480,16 @@ impl AddressableMemory for NesCart {
             unimplemented!()
         } else {
             // cartridge rom
-            let rom_address = address - 0x8000;
-            println!("getting cartridge rom address {:x} translates to {:x}", address, rom_address);
+            let mut rom_address = address - 0x8000;
+            // println!("getting cartridge rom address {:x} translates to {:x}", address, rom_address);
+            if rom_address >= self.prg_rom.len() as u16 {
+                rom_address -= 0x4000;
+                // println!("subtracting 0x4000 = {:x}", rom_address);
+            }
             self.prg_rom[rom_address as usize]
         }
     }
 }
-
 
 /// NES cpu instance
 #[derive(Default, Clone)]
@@ -482,17 +501,17 @@ pub struct Nes2a03 {
 #[derive(Default, Clone, PartialEq, Eq, Debug)]
 pub struct NesRegisters {
     /// program counter
-    pc: u16,
+    pub pc: u16,
     /// stack pointer
-    sp: u8,
+    pub sp: u8,
     /// accumulator
-    a: u8,
+    pub a: u8,
     /// index x
-    x: u8,
+    pub x: u8,
     /// index y
-    y: u8,
+    pub y: u8,
     /// processor status
-    p: u8,
+    pub p: u8,
     // debug counter for stack pushes
     // debug_stack_depth: u16,
 }
@@ -612,7 +631,7 @@ impl NesRegisters {
 pub struct Nes2c02;
 
 pub trait AddressableMemory {
-    fn bounds(&self) -> (u16,u16);
+    fn bounds(&self) -> (u16, u16);
     fn bounds_check(&self, address: u16) -> bool {
         let bounds = self.bounds();
         address >= bounds.0 && address < bounds.1
@@ -651,30 +670,27 @@ pub struct NesRam {
 /// todo: construct this more carefully
 impl Default for NesRam {
     fn default() -> Self {
-        NesRam {
-            inner: [0u8; 2048],
-        }
+        NesRam { inner: [0u8; 2048] }
     }
 }
 
 impl AddressableMemory for NesRam {
-    fn bounds(&self) -> (u16,u16) {
-        (0,0x2000)
+    fn bounds(&self) -> (u16, u16) {
+        (0, 0x2000)
     }
     fn set(&mut self, address: u16, value: u8) {
-        if self.bounds_check(address)  {
+        if self.bounds_check(address) {
             self.inner[address as usize] = value;
         }
     }
     fn get(&self, address: u16) -> u8 {
-        if self.bounds_check(address)  {
+        if self.bounds_check(address) {
             self.inner[address as usize]
         } else {
             0
         }
     }
 }
-
 
 #[derive(Default)]
 pub struct Nes2a03Audio;
