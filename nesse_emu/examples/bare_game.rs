@@ -92,52 +92,59 @@ const GAME_CODE: &[u8] = &[
     0xc9, 0x61,
     0xf0, 0x22, // beq left_key
     0x60, // rts
-    // up_key
+    // 0x0660 up_key
     0xa9, 0x04,
     0x24, 0x02, 
     0xd0, 0x26, // bne illegal_move
     0xa9, 0x01,
     0x85, 0x02,
     0x60, // rts
-    // right_key
+    // 0x066 bright_key
     0xa9, 0x08,
     0x24, 0x02, 
     0xd0, 0x1b, // bne illegal_move
     0xa9, 0x02,
     0x85, 0x02,
     0x60, // rts
-    // down_key
+    // 0x0676 down_key
     0xa9, 0x01,
     0x24, 0x02,
     0xd0, 0x10, // bne illegal_move
     0xa9, 0x04,
     0x85, 0x02,
     0x60, // rts
-    // left_key
+    // 0x0681 left_key
     0xa9, 0x02,
     0x24, 0x02,
     0xd0, 0x05, // bne illegal_move
     0xa9, 0x08,
     0x85, 0x02,
     0x60, // rts
-    // illegal_move
+    // 0x068c illegal_move
     0x60, // rts
-    // check_collision
-    0x20, 0x94, 0x06, // jsr check_apple_collission
+    // 0x068d check_collision
+    0x20, 0x94, 0x06, // jsr check_apple_collision
     0x20, 0xa8, 0x06, // jsr check_snake_collision
     0x60, // rts
-    // 0x0694 check_apple_collission
+    // 0x0694 check_apple_collision
     0xa5, 0x00, // lda
-    0xc5, 0x10, 0xd0, 0x0d,
+    0xc5, 0x10, // cmp
+    0xd0, 0x0d, // bne 
     0xa5, 0x01, // lda
-    0xc5, 0x11, 0xd0, 0x07,
+    0xc5, 0x11, // cmp
+    0xd0, 0x07, // bne 
     0xe6, 0x03, 0xe6, 0x03,
-    0x20, 0x2a, 0x06, // jsr
+    0x20, 0x2a, 0x06, // jsr generate_apple_position
     0x60, // rts
-    0xa2, 0x02, 0xb5, 0x10, 0xc5, 0x10, 0xd0, 0x06,
+    // 0x06a8 check_snake_collision
+    0xa2, 0x02, 
+    0xb5, 0x10, // lda
+    0xc5, 0x10, // cmp
+    0xd0, 0x06,  // bne <-- issues with infinite loop
     0xb5, 0x11, 0xc5, 0x11, 0xf0, 0x09, 0xe8, 0xe8, 0xe4, 0x03, 0xf0, 0x06, 0x4c, 0xaa, 0x06, 0x4c,
     0x35, 0x07,
     0x60, // rts
+    // 0x06c3 updateSnake
     0xa6, 0x03, 0xca, 0x8a, 0xb5, 0x10, 0x95, 0x12, 0xca, 0x10, 0xf9,
     0xa5, 0x02, // lda
     0x4a, 0xb0, 0x09, 0x4a, 0xb0, 0x19, 0x4a, 0xb0, 0x1f, 0x4a, 0xb0, 0x2f,
@@ -170,7 +177,9 @@ const GAME_CODE: &[u8] = &[
     0x29,
     0x1f, 0xc9, 0x1f, 0xf0, 0x01,
     0x60,
-    0x4c, 0x35, 0x07, 0xa0, 0x00,
+    0x4c, 0x35, 0x07, 
+    // 0x0719 draw_apple
+    0xa0, 0x00,
     0xa5, 0xfe, // lda
     0x91, 0x00, 
     0x60, // rts
@@ -229,6 +238,7 @@ fn main() {
 
     nes.run_until_nop();
     nes.cleanup();
+    // loop{}
 }
 
 pub struct RateLimiter;
@@ -279,6 +289,7 @@ impl KeyboardInput {
 impl NesPeripheral for KeyboardInput {
     fn tick(&mut self, nes: &mut Nes) {
         for event in self.1.poll_iter() {
+            // println!("{:?}", event);
             match event {
                 Event::Quit { .. }
                 | Event::KeyDown {
@@ -291,24 +302,28 @@ impl NesPeripheral for KeyboardInput {
                     keycode: Some(Keycode::W),
                     ..
                 } => {
+                    println!("pressed w, writing {} to {}", 0x77, self.0);
                     nes.inject_memory_value(self.0, 0x77);
                 }
                 Event::KeyDown {
                     keycode: Some(Keycode::S),
                     ..
                 } => {
+                    println!("pressed s, writing {} to {}", 0x73, self.0);
                     nes.inject_memory_value(self.0, 0x73);
                 }
                 Event::KeyDown {
                     keycode: Some(Keycode::A),
                     ..
                 } => {
+                    println!("pressed a, writing {} to {}", 0x61, self.0);
                     nes.inject_memory_value(self.0, 0x61);
                 }
                 Event::KeyDown {
                     keycode: Some(Keycode::D),
                     ..
                 } => {
+                    println!("pressed d, writing {} to {}", 0x64, self.0);
                     nes.inject_memory_value(self.0, 0x64);
                 }
                 _ => {
