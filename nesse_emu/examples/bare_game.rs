@@ -9,6 +9,36 @@ use sdl2::{
     EventPump, Sdl, VideoSubsystem,
 };
 
+/// list of labels within the game code,
+/// for debugging purposes
+const LABEL_LIST: &[(u16, &str)] = &[
+    (0x0600, "start"),
+    (0x0606, "init"),
+    (0x060d, "init_snake"),
+    (0x062a, "generate_apple_position"),
+    (0x0638, "loop"),
+    (0x064d, "readkeys"),
+    (0x0660, "up_key"),
+    (0x066b, "right_key"),
+    (0x0676, "down_key"),
+    (0x0681, "left_key"),
+    (0x068c, "illegal_move"),
+    (0x068d, "check_collision"),
+    (0x0694, "check_apple_collision"),
+    (0x06a8, "check_snake_collision"),
+    (0x06c3, "updateSnake"),
+    (0x0000, "___"),
+    (0x0000, "___"),
+    (0x0000, "___"),
+    (0x0000, "___"),
+    (0x0000, "___"),
+    (0x0000, "___"),
+    (0x0000, "___"),
+    (0x0000, "___"),
+    (0x0000, "___"),
+    (0x72d, "unknown"),
+];
+
 #[rustfmt::skip]
 const GAME_CODE: &[u8] = &[
     // 0x0600
@@ -171,11 +201,11 @@ fn main() {
         .unwrap();
 
     let mut canvas = window.into_canvas().present_vsync().build().unwrap();
-    let mut event_pump = context.event_pump().unwrap();
+    let event_pump = context.event_pump().unwrap();
     canvas.set_scale(10.0, 10.0).unwrap();
 
     let creator = canvas.texture_creator();
-    let mut texture = creator
+    let texture = creator
         .create_texture_target(PixelFormatEnum::RGB24, 32, 32)
         .unwrap();
 
@@ -188,13 +218,14 @@ fn main() {
     let mut nes = Nes::default()
         .with_peripheral(&mut random)
         .with_peripheral(&mut input)
-        .with_peripheral(&mut spy)
+        
         .with_peripheral(&mut screen)
-        .with_peripheral(&mut rate)
+        // .with_peripheral(&mut rate)
         // .with_peripheral(Box::new(PCPrinter))
+        .with_peripheral(&mut spy)
         .with_initial_memory(0x600, &GAME_CODE);
-    nes.set_pc(0x600);
     nes.init();
+    nes.set_pc(0x600);
 
     nes.run_until_nop();
     nes.cleanup();
@@ -204,18 +235,26 @@ pub struct RateLimiter;
 
 impl NesPeripheral for RateLimiter {
     fn tick(&mut self, nes: &mut Nes) {
-        ::std::thread::sleep(std::time::Duration::new(0, 10_000_000)); // 16_666_666
+        ::std::thread::sleep(std::time::Duration::new(0, 1)); // 16_666_666
     }
 }
+
+
+
 
 pub struct Spy;
 
 impl NesPeripheral for Spy {
     fn tick(&mut self, nes: &mut Nes) {
+        let regs = nes.dump_registers();
         let next_opcode = nes.peek_pc();
         let stack = nes.dump_stack();
-        print!("{:x} ## {:?} ", next_opcode, nes.dump_registers());
-        println!("{}", stack);
+        let pc = regs.get_pc();
+        if let Some((_,label)) = LABEL_LIST.iter().find(|(address, _)| *address == pc) {
+            println!("LABEL {} at {:x}", label, pc);
+        }
+        // print!("{:2x} ## {:?} ", next_opcode, regs);
+        // println!("{}", stack);
     }
 }
 

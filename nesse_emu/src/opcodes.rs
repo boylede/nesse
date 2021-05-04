@@ -186,6 +186,20 @@ pub fn cpx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     cycles
 }
 
+pub fn bit(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    let address = nes.get_address_from_mode(addressing);
+    let value = nes.ram.get(address);
+    let mask = nes.cpu.registers.a;
+    let result = value & mask;
+    
+    nes.cpu.registers.set_overflow_from(value);
+    nes.cpu.registers.set_negative_from(value);
+    nes.cpu.registers.set_zero_from(result);
+
+    cycles
+}
+
+
 // jump & branch family ----------------------------------------------------------------
 pub fn jsr(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let jump_address = nes.ram.get_short(nes.cpu.registers.pc);
@@ -282,7 +296,7 @@ pub fn bcs(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     cycles
 }
 
-pub fn bcc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+pub fn bcc(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let offset = nes.ram.get(nes.cpu.registers.pc) as i8;
     nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
     if nes.cpu.registers.status_carry() == false {
@@ -303,13 +317,7 @@ pub fn cpy(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     cycles
 }
 
-pub fn bit(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    let address = nes.get_address_from_mode(addressing);
-    println!("{} unimplemented", "bit");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
+
 
 pub fn asl(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented: {}", "asl", addressing);

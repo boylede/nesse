@@ -11,7 +11,7 @@ pub mod prelude {
     pub use crate::*;
 }
 
-pub use opcodes::jumptable::opcode_jumptable;
+pub use opcodes::jumptable::OPCODE_JUMPTABLE;
 
 // the value loaded into pc is stored in this location
 const INITIAL_PC_LOCATION: u16 = 0xfffc;
@@ -134,7 +134,7 @@ impl<'a> Nes<'a> {
         let instruction = unsafe {
             // SAFETY: this is safe because we generate the jumptable
             // with 256 entries, which covers all possible u8 indexes
-            opcode_jumptable.get_unchecked(opcode as usize)
+            OPCODE_JUMPTABLE.get_unchecked(opcode as usize)
         };
         instruction.run(self);
         // todo: with the way we're doing this we can remove the cycles
@@ -298,6 +298,9 @@ impl NesRegisters {
     pub fn set_pc(&mut self, value: u16) {
         self.pc = value;
     }
+    pub fn get_pc(&self) -> u16 {
+        self.pc
+    }
     pub fn set_flags(&mut self, value: u8) {
         if value == 0 {
             self.p |= FLAG_ZERO;
@@ -308,6 +311,29 @@ impl NesRegisters {
             self.p |= FLAG_NEGATIVE;
         } else {
             self.p &= !FLAG_NEGATIVE;
+        }
+    }
+    pub fn set_overflow_from(&mut self, test: u8) {
+        // todo: can we remove conditional here
+        if (test & FLAG_OVERFLOW) > 0 {
+            self.p |= FLAG_OVERFLOW;
+        } else {
+            self.p &= !FLAG_OVERFLOW;
+        }
+    }
+    pub fn set_negative_from(&mut self, test: u8) {
+        // todo: can we remove conditional here
+        if (test & FLAG_NEGATIVE) > 0 {
+            self.p |= FLAG_NEGATIVE;
+        } else {
+            self.p &= !FLAG_NEGATIVE;
+        }
+    }
+    pub fn set_zero_from(&mut self, test: u8) {
+        if test == 0 {
+            self.p |= FLAG_ZERO;
+        } else {
+            self.p &= !FLAG_ZERO;
         }
     }
     pub fn set_carry(&mut self) {
@@ -321,6 +347,12 @@ impl NesRegisters {
     }
     pub fn clear_overflow(&mut self) {
         self.p &= !FLAG_OVERFLOW;
+    }
+    pub fn set_negative(&mut self) {
+        self.p |= FLAG_NEGATIVE;
+    }
+    pub fn clear_negative(&mut self) {
+        self.p &= !FLAG_NEGATIVE;
     }
     pub fn get_carry(&self) -> u8 {
         self.p & FLAG_CARRY

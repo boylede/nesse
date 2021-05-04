@@ -7,13 +7,21 @@ pub struct Opcode {
     pub cycles: u8,
     pub bytes: u8,
 }
+
+#[test]
+pub fn check_jumptable_entry_size() {
+    let entry_size = std::mem::size_of::<Opcode>();
+    assert!(entry_size == std::mem::align_of::<OpcodeFn>() * 2);
+    assert!(std::mem::size_of_val(&OPCODE_JUMPTABLE) == entry_size * 256);
+}
+
 impl Opcode {
     #[inline(always)]
     pub fn run(&self, nes: &mut Nes) -> u8 {
         (self.exec)(nes, self.addressing, self.cycles, self.bytes)
     }
 }
-pub const opcode_jumptable: [Opcode; 256] = [
+pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
     Opcode {
         exec: brk,
         addressing: 0u8,
