@@ -49,7 +49,8 @@ impl NesOpcode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
+#[repr(u8)]
 pub enum AddressingMode {
     Implicit,
     Accumulator,

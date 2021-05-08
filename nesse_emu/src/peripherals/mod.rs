@@ -9,7 +9,6 @@ impl Spy {
 
 impl NesPeripheral for Spy {
     fn tick(&mut self, nes: &mut Nes) {
-        nes.enable_debug = false;
         let regs = nes.dump_registers();
         let pc = regs.get_pc();
         let mut line = String::new();
@@ -173,6 +172,5 @@ impl NesPeripheral for Spy {
 
         println!("{}", line);
         // println!("{}", stack);
-        // nes.enable_debug = true;
     }
 }

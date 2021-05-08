@@ -365,6 +365,7 @@ version = "0.1.0"
 dependencies = [
  "crossterm",
  "enum_dispatch",
+ "nesse_common",
  "rand 0.7.3",
  "sdl2",
 ]

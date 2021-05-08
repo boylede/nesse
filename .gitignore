@@ -1,1 +1,5 @@
 /target
+out.txt
+*.html
+*.nes
+*.s

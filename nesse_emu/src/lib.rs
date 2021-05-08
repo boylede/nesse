@@ -23,6 +23,8 @@ const INITIAL_PC_LOCATION: u16 = 0xfffc;
 const STACK_OFFSET: u16 = 1 << 8;
 /// The value of the stack pointer on reset
 const STACK_INITIAL: u8 = 0xFD;
+/// the value of the status register on reset
+const STATUS_INITIAL: u8 = 0b100100;
 
 /// allows a function to be called by an instance of the NES at each tick
 pub trait NesPeripheral {
@@ -270,9 +272,7 @@ impl<'a> Nes<'a> {
     }
     /// returns the value at memory\[pc++\]
     pub fn peek_pc(&mut self) -> u8 {
-        let value = self.get(self.cpu.registers.pc);
-
-        value
+        self.get(self.cpu.registers.pc)
     }
     pub fn insert_cartridge(&mut self, cart: NesCart) {
         if let None = self.cartridge {
@@ -584,8 +584,7 @@ impl NesRegisters {
         self.x = 0;
         self.y = 0;
         self.sp = STACK_INITIAL;
-        // self.debug_stack_depth = 0;
-        self.p = 0b100100;
+        self.p = STATUS_INITIAL;
         // self.pc = todo: figure out how i want to handle multiple options here
     }
     pub fn status_zero(&self) -> bool {
