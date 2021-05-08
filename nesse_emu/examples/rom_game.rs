@@ -77,7 +77,6 @@ fn main() {
         // .with_initial_memory(0x600, &GAME_CODE);
         ;
     nes.insert_cartridge(snake_cartridge);
-    nes.set_pc(0x600);
     nes.init();
 
     nes.run_until_nop();
