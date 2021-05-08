@@ -319,6 +319,58 @@ impl<'a> AddressableMemory for Nes<'a> {
     }
 }
 
+impl<'a> RegisterAccess for Nes<'a> {
+    fn get_a(&self) -> u8 {
+        self.cpu.registers.a
+    }
+    fn get_x(&self) -> u8 {
+        self.cpu.registers.x
+    }
+    fn get_y(&self) -> u8 {
+        self.cpu.registers.y
+    }
+    fn get_p(&self) -> u8 {
+        self.cpu.registers.p
+    }
+    fn get_sp(&self) -> u8 {
+        self.cpu.registers.sp
+    }
+    fn get_pc(&self) -> u16 {
+        self.cpu.registers.pc
+    }
+
+    fn set_a(&mut self, value: u8) -> u8 {
+        let old = self.cpu.registers.a;
+        self.cpu.registers.a = value;
+        old
+    }
+    fn set_x(&mut self, value: u8) -> u8 {
+        let old = self.cpu.registers.x;
+        self.cpu.registers.x = value;
+        old
+    }
+    fn set_y(&mut self, value: u8) -> u8 {
+        let old = self.cpu.registers.y;
+        self.cpu.registers.y = value;
+        old
+    }
+    fn set_p(&mut self, value: u8) -> u8 {
+        let old = self.cpu.registers.p;
+        self.cpu.registers.p = value;
+        old
+    }
+    fn set_sp(&mut self, value: u8) -> u8 {
+        let old = self.cpu.registers.sp;
+        self.cpu.registers.sp = value;
+        old
+    }
+    fn set_pc(&mut self, value: u16) -> u16 {
+        let old = self.cpu.registers.pc;
+        self.cpu.registers.pc = value;
+        old
+    }
+}
+
 pub struct NesCart {
     pub header: NesCartHeader,
     trainer: Option<Vec<u8>>,
@@ -630,6 +682,108 @@ impl NesRegisters {
 
 #[derive(Default)]
 pub struct Nes2c02;
+
+pub trait RegisterAccess {
+    fn get_a(&self) -> u8;
+    fn get_x(&self) -> u8;
+    fn get_y(&self) -> u8;
+    fn get_p(&self) -> u8;
+    fn get_sp(&self) -> u8;
+    fn get_pc(&self) -> u16;
+
+    /// sets "a" register, returns old value.
+    fn set_a(&mut self, value: u8) -> u8;
+    fn set_x(&mut self, value: u8) -> u8;
+    fn set_y(&mut self, value: u8) -> u8;
+    fn set_p(&mut self, value: u8) -> u8;
+    fn set_sp(&mut self, value: u8) -> u8;
+    fn set_pc(&mut self, value: u16) -> u16;
+
+    // provided methods
+    /// sets all registers to startup values, except PC which must be set separately
+    fn reset(&mut self) {
+        self.set_a(0);
+        self.set_x(0);
+        self.set_y(0);
+        self.set_sp(STACK_INITIAL);
+        self.set_p( STATUS_INITIAL);
+    }
+    fn status_zero(&self) -> bool {
+        self.get_p() & FLAG_ZERO == FLAG_ZERO
+    }
+    fn status_negative(&self) -> bool {
+        self.get_p() & FLAG_NEGATIVE == FLAG_NEGATIVE
+    }
+    fn status_carry(&self) -> bool {
+        self.get_p() & FLAG_CARRY == FLAG_CARRY
+    }
+    fn set_flags_from(&mut self, value: u8) {
+        self.set_zero_from(value);
+        self.set_negative_from(value);
+    }
+    fn set_overflow_from(&mut self, test: u8) {
+        // todo: can we remove conditional here
+        if (test & FLAG_OVERFLOW) > 0 {
+            self.set_p(self.get_p() | FLAG_OVERFLOW);
+        } else {
+            self.set_p(self.get_p() & !FLAG_OVERFLOW);
+        }
+    }
+    fn set_negative_from(&mut self, test: u8) {
+        // todo: can we remove conditional here
+        if (test & FLAG_NEGATIVE) > 0 {
+            self.set_negative();
+        } else {
+            self.clear_negative();
+        }
+    }
+    fn set_zero_from(&mut self, test: u8) {
+        if test == 0 {
+            self.set_zero()
+        } else {
+            self.clear_zero()
+        }
+    }
+    fn set_zero(&mut self) {
+        self.set_p(self.get_p() | FLAG_ZERO);
+    }
+    fn clear_zero(&mut self) {
+        self.set_p(self.get_p() & !FLAG_ZERO);
+    }
+    fn set_carry(&mut self) {
+        self.set_p(self.get_p() | FLAG_CARRY);
+    }
+    fn clear_carry(&mut self) {
+        self.set_p(self.get_p() & !FLAG_CARRY);
+    }
+    fn set_overflow(&mut self) {
+        self.set_p(self.get_p() | FLAG_OVERFLOW);
+    }
+    fn clear_overflow(&mut self) {
+        self.set_p(self.get_p()& !FLAG_OVERFLOW);
+    }
+    fn set_negative(&mut self) {
+        self.set_p(self.get_p() | FLAG_NEGATIVE);
+    }
+    fn clear_negative(&mut self) {
+        self.set_p(self.get_p()& !FLAG_NEGATIVE);
+    }
+    fn get_carry(&self) -> u8 {
+        self.get_p() & FLAG_CARRY
+    }
+    fn increment_a(&mut self) {
+        self.set_a(self.get_a().wrapping_add(1));
+    }
+    fn increment_pc(&mut self) {
+        self.set_pc(self.get_pc().wrapping_add(1));
+    }
+    fn increment_x(&mut self) {
+        self.set_x(self.get_x().wrapping_add(1));
+    }
+    fn increment_y(&mut self) {
+        self.set_y(self.get_y().wrapping_add(1));
+    }
+}
 
 pub trait AddressableMemory {
     fn bounds(&self) -> (u16, u16);
