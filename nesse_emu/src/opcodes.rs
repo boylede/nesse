@@ -137,8 +137,10 @@ pub fn lsr(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         let mut value = nes.cpu.registers.a;
         if value & 0b1 == 0b1 {
             nes.cpu.registers.set_carry();
+        } else {
+            nes.cpu.registers.clear_carry();
         }
-        value = value >> 1;
+        value = value << 1;
         nes.cpu.registers.set_flags(value);
         nes.cpu.registers.a = value;
     } else {
@@ -147,8 +149,10 @@ pub fn lsr(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         let mut value = nes.get(address);
         if value & 0b1 == 0b1 {
             nes.cpu.registers.set_carry();
+        } else {
+            nes.cpu.registers.clear_carry();
         }
-        value = value >> 1;
+        value = value << 1;
         nes.cpu.registers.set_flags(value);
         // println!("left shifted value {} in memory address {}", value, address);
         nes.set(address, value);
@@ -172,6 +176,8 @@ pub fn cmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let compare = nes.cpu.registers.a as i16 - value as i16;
     if compare <= 0 {
         nes.cpu.registers.set_carry();
+    } else {
+        nes.cpu.registers.clear_carry();
     }
     nes.cpu.registers.set_flags(compare as u8);
     // println!("cmp {} - {} resulted in {}", nes.cpu.registers.a, value, compare);
@@ -184,6 +190,8 @@ pub fn cpx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let compare = nes.cpu.registers.x as i16 - value as i16;
     if compare <= 0 {
         nes.cpu.registers.set_carry();
+    } else {
+        nes.cpu.registers.clear_carry();
     }
     nes.cpu.registers.set_flags(compare as u8);
     cycles
@@ -285,14 +293,15 @@ pub fn bpl(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 }
 
 pub fn bcs(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let offset = nes.get(nes.cpu.registers.pc) as i8;
-    nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
     if nes.cpu.registers.status_carry() == true {
-        // println!("adding {} to pc {}", offset, nes.cpu.registers.pc);
+        let offset = nes.get(nes.cpu.registers.pc) as i8;
+        println!("adding {} to pc {}", offset, nes.cpu.registers.pc);
         let mut pc = nes.cpu.registers.pc as i32;
         pc = (pc + offset as i32) & 0xffff;
         nes.cpu.registers.pc = pc as u16;
         println!("bcsranching to {:x}", pc);
+    } else {
+        nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
     }
     cycles
 }
