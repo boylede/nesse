@@ -140,7 +140,7 @@ pub fn generate_jumplist(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
                 ident: Ident::new("placeholder", Span::call_site()),
                 addresssing: 0,
                 cycles: 0,
-                bytes: 0,
+                bytes: 1,
             };
             opcodes.push(jle);
         }
