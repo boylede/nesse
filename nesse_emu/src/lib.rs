@@ -7,6 +7,8 @@ mod test;
 
 pub mod peripherals;
 mod opcodes;
+#[cfg(feature="delta")]
+mod emulator_state;
 
 pub use opcodes::opcode_debug::opcode_names;
 
@@ -44,6 +46,17 @@ pub struct Nes<'a> {
     gamepads: [Option<NesGamepad>; 8],
     // todo: switch to enum_dispatch
     peripherals: Option<Vec<&'a mut NesPeripheral>>,
+}
+#[test]
+fn nes_size() {
+    let nes = std::mem::size_of::<Nes>();
+    // let rw = std::mem::size_of::<RegisterWrite>();
+    // let gw = std::mem::size_of::<GlobalEvent>();
+    // let d = std::mem::size_of::<DeltaEvent>();
+    // assert_eq!(mw, 4 );
+    // assert_eq!(rw, 6 );
+    // assert_eq!(gw, 1 );
+    assert_eq!(nes, 16 );
 }
 
 impl<'a> Nes<'a> {
