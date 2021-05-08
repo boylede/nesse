@@ -5,6 +5,7 @@ use std::io::Read;
 #[cfg(test)]
 mod test;
 
+pub mod peripherals;
 mod opcodes;
 
 pub use opcodes::opcode_debug::opcode_names;
