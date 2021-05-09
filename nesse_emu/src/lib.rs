@@ -187,22 +187,34 @@ impl<'a> Nes<'a> {
                 // Absolute
                 let value = self.cpu.registers.pc;
                 self.cpu.registers.pc += 2; // skips two bytes since pointers are a two byte value
-                value
+                let deref = self.get_short(value);
+                deref
             }
             8 => {
                 // AbsoluteX
-                unimplemented!()
+                let address = self.get_short(self.cpu.registers.pc);
+                self.cpu.registers.pc += 2;
+                address.wrapping_add(self.cpu.registers.x as u16)
             }
             9 => {
                 // AbsoluteY
-                unimplemented!()
+                let address = self.get_short(self.cpu.registers.pc);
+                self.cpu.registers.pc += 2;
+                address.wrapping_add(self.cpu.registers.y as u16)
             }
             10 => {
                 // Indirect
-                unimplemented!()
+                let address = self.get_short(self.cpu.registers.pc);
+                self.cpu.registers.pc += 2;
+                let address_lo = (address & 0xff) as u8;
+                let address_hi = address & 0xff00;
+                let lo = self.get(address) as u16;
+                let hi_address = address_lo.wrapping_add(1) as u16 | address_hi;
+                let hi = self.get(hi_address) as u16;
+                (hi << 8) | lo
             }
             11 => {
-                // IndexedIndirect
+                // IndexedIndirect (x)
                 // The address of the table is taken from the instruction and the X register added to it (with zero page wrap around) to give the location of the least significant byte of the target address.
                 let table = self.get(self.cpu.registers.pc);
                 self.cpu.registers.pc += 1;
@@ -213,12 +225,20 @@ impl<'a> Nes<'a> {
                 value
             }
             12 => {
-                // IndirectIndexed
-                let base = self.get(self.cpu.registers.pc);
+                // IndirectIndexed (y)
+                // let immediate = nes.get(pc + 1);
+                // let lo = nes.get(immediate as u16) as u16;
+                // let hi = nes.get(immediate.wrapping_add(1) as u16) as u16; // wraps around zero page
+                // let short = hi << 8 | lo;
+                // let address = short.wrapping_add(regs.y as u16);
+                // let value = nes.get(address);
+                let immediate = self.get(self.cpu.registers.pc);
                 self.cpu.registers.pc += 1;
-                let lo = self.get(base as u16);
-                let hi = self.get(base.wrapping_add(1) as u16);
-                (hi as u16) << 8 | (lo as u16).wrapping_add(self.cpu.registers.y as u16)
+                let lo = self.get(immediate as u16) as u16;
+                let hi = self.get(immediate.wrapping_add(1) as u16) as u16;
+                let short = hi << 8 | lo;
+                short.wrapping_add(self.cpu.registers.y as u16)
+                // (hi as u16) << 8 | (lo as u16).wrapping_add(self.cpu.registers.y as u16)
             }
             _ => {
                 unimplemented!()

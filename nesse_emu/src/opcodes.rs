@@ -7,89 +7,49 @@ pub mod opcode_debug;
 // load & store family --------------------------------------------------------
 pub fn ldx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    if addressing == 7 {
-        // absolute mode - loads a short
-        let deref = nes.get_short(address);
-        let value = nes.get(deref);
-        nes.cpu.registers.x = value;
-        nes.cpu.registers.set_flags(value);
-        cycles
-    } else {
-        let value = nes.get(address);
-        nes.cpu.registers.x = value;
-        nes.cpu.registers.set_flags(value);
-        cycles
-    }
-
+    let value = nes.get(address);
+    nes.cpu.registers.x = value;
+    nes.cpu.registers.set_flags(value);
+    cycles
+    
 }
 
 pub fn lda(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    if addressing == 7 {
-        // absolute mode - loads a short
-        let deref = nes.get_short(address);
-        let value = nes.get(deref);
-        nes.cpu.registers.a = value;
-        nes.cpu.registers.set_flags(value);
-        cycles
-    } else {
-        let value = nes.get(address);
-        nes.cpu.registers.a = value;
-        nes.cpu.registers.set_flags(value);
-        cycles
-    }
+    let value = nes.get(address);
+    nes.cpu.registers.a = value;
+    nes.cpu.registers.set_flags(value);
+    cycles
+    
 }
 
 pub fn ldy(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    if addressing == 7 {
-        // absolute mode - loads a short
-        let deref = nes.get_short(address);
-        let value = nes.get(deref);
-        nes.cpu.registers.y = value;
-        nes.cpu.registers.set_flags(value);
-        cycles
-    } else {
-        let value = nes.get(address);
-        nes.cpu.registers.y = value;
-        nes.cpu.registers.set_flags(value);
-        cycles
-    }
+    let value = nes.get(address);
+    nes.cpu.registers.y = value;
+    nes.cpu.registers.set_flags(value);
+    cycles
+    
 }
 
 pub fn sta(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    if addressing == 7 {
-        // absolute mode - loads a short
-        let deref = nes.get_short(address);
-        nes.set(deref, nes.cpu.registers.a);
-    } else {
-        nes.set(address, nes.cpu.registers.a);
-    }
+    nes.set(address, nes.cpu.registers.a);
+    
     cycles
 }
 
 pub fn stx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    if addressing == 7 {
-        // absolute mode - loads a short
-        let deref = nes.get_short(address);
-        nes.set(deref, nes.cpu.registers.x);
-    } else {
-        nes.set(address, nes.cpu.registers.x);
-    }
+    nes.set(address, nes.cpu.registers.x);
+    
     cycles
 }
 
 pub fn sty(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    if addressing == 7 {
-        // absolute mode - loads a short
-        let deref = nes.get_short(address);
-        nes.set(deref, nes.cpu.registers.y);
-    } else {
-        nes.set(address, nes.cpu.registers.y);
-    }
+    nes.set(address, nes.cpu.registers.y);
+
     cycles
 }
 
@@ -179,6 +139,7 @@ pub fn iny(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     nes.cpu.registers.set_flags(value);
     cycles
 }
+
 pub fn dex(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.cpu.registers.x.wrapping_sub(1);
     nes.cpu.registers.x = value;
@@ -232,6 +193,11 @@ pub fn sei(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     nes.cpu.registers.set_interrupt();
     cycles
 }
+pub fn cli(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    nes.cpu.registers.clear_interrupt();
+    cycles
+}
+
 /// return from interrupt
 pub fn rti(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let flags = nes.stack_pop();
@@ -240,7 +206,7 @@ pub fn rti(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     // let pc = value.wrapping_add(1); // todo: why dont we add 1 here like rts?
     nes.cpu.registers.pc = value;
     nes.cpu.registers.set_status_stack(flags);
-    // nes.cpu.registers.p = flags;
+
     cycles
 }
 
@@ -352,7 +318,7 @@ pub fn asl(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     if addressing == 1 {
         // operate on the accumulator
         let mut value = nes.cpu.registers.a;
-        if value & 1<<7 == 1<<7 {
+        if value & 1 << 7 == 1 << 7 {
             nes.cpu.registers.set_carry();
         } else {
             nes.cpu.registers.clear_carry();
@@ -483,27 +449,15 @@ pub fn cpy(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 }
 
 pub fn bit(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    // todo: can only be absolute or zero page, so remove this function call since
-    // we already have to branch on mode
     let address = nes.get_address_from_mode(addressing);
-    if addressing == 7 {
-        let deref = nes.get_short(address);
-        let value = nes.get(deref);
-        let mask = nes.cpu.registers.a;
-        let result = value & mask;
-    
-        nes.cpu.registers.set_overflow_from(value);
-        nes.cpu.registers.set_negative_from(value);
-        nes.cpu.registers.set_zero_from(result);
-    } else {
-        let value = nes.get(address);
-        let mask = nes.cpu.registers.a;
-        let result = value & mask;
-    
-        nes.cpu.registers.set_overflow_from(value);
-        nes.cpu.registers.set_negative_from(value);
-        nes.cpu.registers.set_zero_from(result);
-    }
+    let value = nes.get(address);
+    let mask = nes.cpu.registers.a;
+    let result = value & mask;
+
+    nes.cpu.registers.set_overflow_from(value);
+    nes.cpu.registers.set_negative_from(value);
+    nes.cpu.registers.set_zero_from(result);
+
     cycles
 }
 
@@ -521,8 +475,7 @@ pub fn jsr(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 }
 pub fn jmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    let jump_address = nes.get_short(address);
-    nes.cpu.registers.pc = jump_address;
+    nes.cpu.registers.pc = address;
     cycles
 }
 pub fn rts(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
