@@ -206,10 +206,11 @@ impl<'a> Nes<'a> {
                 // The address of the table is taken from the instruction and the X register added to it (with zero page wrap around) to give the location of the least significant byte of the target address.
                 let table = self.get(self.cpu.registers.pc);
                 self.cpu.registers.pc += 1;
-                let base = table.wrapping_add(self.cpu.registers.x) as u16;
-                let lo = self.get(base) as u16;
-                let hi = self.get(base.wrapping_add(1)) as u16;
-                (hi << 8) | lo
+                let base = table.wrapping_add(self.cpu.registers.x);
+                let lo = self.get(base as u16) as u16;
+                let hi = self.get(base.wrapping_add(1) as u16) as u16;
+                let value = (hi << 8) | lo;
+                value
             }
             12 => {
                 // IndirectIndexed

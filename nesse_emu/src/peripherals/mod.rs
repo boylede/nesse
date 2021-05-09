@@ -91,8 +91,20 @@ impl NesPeripheral for Spy {
                 use OpGroup::*;
                 match opcode_group(opcode) {
                     Control => {
-                        line.push_str(&format!("${:04X}", value));
-                        len = 5;
+                        if opcode & 0xf0 == 0xa0 {
+                            line.push_str(&format!("${:04X} = {:02X}", value, dereferenced));
+                            len = 10;
+                        } else {
+                            if opcode & 0x0f == 0x0c && (opcode & 0xf0 == 0x80 || opcode & 0xf0 == 0x20) {
+                                line.push_str(&format!("${:04X} = {:02X}", value, dereferenced));
+                                len = 10;
+                            } else {
+                                line.push_str(&format!("${:04X}", value));
+                                len = 5;
+                            }
+                            
+                        }
+                        
                     },
                     Alu => {
                         line.push_str(&format!("${:04X} = {:02X}", value, dereferenced));
@@ -103,8 +115,8 @@ impl NesPeripheral for Spy {
                         len = 10;
                     },
                     Unoff => {
-                        line.push_str(&format!("${:04X}", value));
-                        len = 5;
+                        line.push_str(&format!("${:04X} = {:02X}", value, dereferenced));
+                        len = 10;
                     },
                 }
                 
@@ -127,8 +139,8 @@ impl NesPeripheral for Spy {
                 let table = nes.get(pc+1);
                 let base = table.wrapping_add(regs.x) as u16;
                 // let value = nes.get(address as u16);
-                let lo = nes.get(base) as u16;
-                let hi = nes.get(base.wrapping_add(1)) as u16;
+                let lo = nes.get(base as u16) as u16;
+                let hi = nes.get(base.wrapping_add(1) as u16) as u16;
                 let address = hi << 8 | lo;
                 let value = nes.get(address);
                 line.push_str(&format!("(${:02X},X) @ {:02X} = {:04X} = {:02X}", table, base, address, value));

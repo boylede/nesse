@@ -1,5 +1,5 @@
-use nesse_emu::prelude::*;
 use nesse_emu::peripherals::Spy;
+use nesse_emu::prelude::*;
 use rand::Rng;
 use sdl2::{
     event::Event,
@@ -9,6 +9,8 @@ use sdl2::{
     video::{Window, WindowContext},
     EventPump, Sdl, VideoSubsystem,
 };
+
+use std::{time};
 
 /// list of labels within the game code,
 /// for debugging purposes
@@ -29,11 +31,10 @@ const LABEL_LIST: &[(u16, &str)] = &[
     (0x06a8, "check_snake_collision"),
     (0x06b0, "maybeCollided"),
     (0x06bf, "didCollide"),
-     
     (0x06c3, "updateSnake"),
     (0x0000, "___"),
     (0x0000, "___"),
-    (0x0000, "___"), 
+    (0x0000, "___"),
     (0x0000, "___"),
     (0x0000, "___"),
     (0x0000, "___"),
@@ -227,12 +228,14 @@ fn main() {
     let mut screen = SimpleScreen::new(0x200, texture, &mut canvas);
     let mut spy = Spy::new(LABEL_LIST);
     let mut rate = RateLimiter;
+    let mut timer = FPSCounter::new();
 
     let mut nes = Nes::default()
         .with_peripheral(&mut random)
         .with_peripheral(&mut input)
         .with_peripheral(&mut screen)
-        // .with_peripheral(&mut rate)
+        // .with_peripheral(&mut timer)
+        .with_peripheral(&mut rate)
         // .with_peripheral(Box::new(PCPrinter))
         .with_peripheral(&mut spy)
         .with_initial_memory(0x600, &GAME_CODE);
@@ -248,9 +251,36 @@ pub struct RateLimiter;
 
 impl NesPeripheral for RateLimiter {
     fn tick(&mut self, nes: &mut Nes) {
-        ::std::thread::sleep(std::time::Duration::new(0, 1)); // 16_666_666
+        // thread::sleep(std::time::Duration::new(0, 1)); // 16_666_666
+        spin_sleep::sleep(std::time::Duration::new(0, 550));
+        // .000000558730073590338
     }
 }
+
+pub struct FPSCounter {
+    last_time: time::Instant,
+}
+
+impl FPSCounter {
+    fn new() -> Self {
+        FPSCounter {
+            last_time: time::Instant::now(),
+        }
+    }
+}
+
+impl NesPeripheral for FPSCounter {
+    fn init(&mut self, nes: &mut Nes) {
+        self.last_time = time::Instant::now();
+    }
+    fn tick(&mut self, nes: &mut Nes) {
+        let current = time::Instant::now();
+        let elapsed = current - self.last_time;
+        println!("{:?}", elapsed);
+        self.last_time = current;
+    }
+}
+
 
 /// inserts a random number into the game every tick at the given address
 pub struct RandomNumberGenerator(u16);
