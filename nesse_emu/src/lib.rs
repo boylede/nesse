@@ -66,6 +66,7 @@ impl<'a> Nes<'a> {
     }
     pub fn init(&mut self) {
         self.cpu.registers.reset();
+        self.cpu.cycles = 7; // todo: model startup
         let initial_pc = self.get_short(INITIAL_PC_LOCATION);
         // println!("setting pc to {:x}", initial_pc);
         self.set_pc(initial_pc);
@@ -81,6 +82,7 @@ impl<'a> Nes<'a> {
             for p in peripherals.iter_mut() {
                 p.cleanup(self);
             }
+            self.peripherals.replace(peripherals);
         }
     }
     pub fn extract_memory(&self, address: u16) -> u8 {
@@ -290,9 +292,10 @@ impl<'a> Nes<'a> {
         // todo: with the way we're doing this we can remove the cycles
         // from the instruction fn signature argument list
         // and not have that function return any values
-        instruction.cycles as usize
+        self.cpu.cycles += instruction.cycles as u64;
+        instruction.cycles as u64
     }
-    pub fn run_until_nop(&mut self) -> usize {
+    pub fn run_until_nop(&mut self) -> u64 {
         let mut last = self.step();
         let mut total = last;
         self.cpu.running = true;
@@ -329,7 +332,9 @@ impl<'a> AddressableMemory for Nes<'a> {
             self.ram.set(address, value);
         } else if address < 0x4020 {
             // other hardware
-            unimplemented!()
+            self.ppu.set(address, value);
+            // println!("wanted to write {:02X} to address {:04X}", value, address);
+            // unimplemented!()
         } else {
             // other addresses handled by cartridge
             if let Some(cart) = &mut self.cartridge {
@@ -342,7 +347,9 @@ impl<'a> AddressableMemory for Nes<'a> {
             self.ram.get(address)
         } else if address < 0x4020 {
             // other hardware
-            unimplemented!()
+            self.ppu.get(address)
+            // println!("wanted to read address {:04X}", address);
+            // unimplemented!()
         } else {
             // other addresses handled by cartridge
             if let Some(cart) = &self.cartridge {
@@ -444,8 +451,16 @@ impl NesCart {
             header[10], header[11], header[12], header[13], header[14], header[15],
         ];
         if reserved_zeros != [0, 0, 0, 0, 0, 0] {
-            println!("unexpected values reserved area of rom header");
-            return None;
+            println!("unexpected values reserved area of rom header:");
+            println!(
+                "{} {} {} {} {} {}",
+                char::from(reserved_zeros[0]),
+                char::from(reserved_zeros[1]),
+                char::from(reserved_zeros[2]),
+                char::from(reserved_zeros[3]),
+                char::from(reserved_zeros[4]),
+                char::from(reserved_zeros[5]),
+            );
         }
         // println!("number of 16kB rom banks: {}", rom_count);
         // println!("number of 8kB vrom banks: {}", vrom_count);
@@ -565,6 +580,7 @@ impl AddressableMemory for NesCart {
             unimplemented!()
         } else if address < 0x8000 {
             // optional ram, for e.g. zelda
+            println!("tried getting option ram address {:04X}", address);
             unimplemented!()
         } else {
             // cartridge rom
@@ -583,6 +599,8 @@ impl AddressableMemory for NesCart {
 #[derive(Default, Clone)]
 pub struct Nes2a03 {
     running: bool,
+    cycles: u64,
+    clock_counter: u8,
     registers: NesRegisters,
 }
 
@@ -741,7 +759,6 @@ impl NesRegisters {
     pub fn set_p(&mut self, value: u8) {
         self.p = value;
     }
-    
 }
 
 #[derive(Default)]
@@ -770,7 +787,7 @@ pub trait RegisterAccess {
         self.set_x(0);
         self.set_y(0);
         self.set_sp(STACK_INITIAL);
-        self.set_p( STATUS_INITIAL);
+        self.set_p(STATUS_INITIAL);
     }
     fn status_zero(&self) -> bool {
         self.get_p() & FLAG_ZERO == FLAG_ZERO
@@ -824,13 +841,13 @@ pub trait RegisterAccess {
         self.set_p(self.get_p() | FLAG_OVERFLOW);
     }
     fn clear_overflow(&mut self) {
-        self.set_p(self.get_p()& !FLAG_OVERFLOW);
+        self.set_p(self.get_p() & !FLAG_OVERFLOW);
     }
     fn set_negative(&mut self) {
         self.set_p(self.get_p() | FLAG_NEGATIVE);
     }
     fn clear_negative(&mut self) {
-        self.set_p(self.get_p()& !FLAG_NEGATIVE);
+        self.set_p(self.get_p() & !FLAG_NEGATIVE);
     }
     fn get_carry(&self) -> u8 {
         self.get_p() & FLAG_CARRY

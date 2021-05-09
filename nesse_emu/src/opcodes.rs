@@ -1,6 +1,8 @@
+// D659 is first failure
+
 use crate::{AddressableMemory, Nes};
 
-// generated in nesse_codegen
+// generated in nesse_codegen:
 pub mod jumptable;
 pub mod opcode_debug;
 
@@ -11,7 +13,6 @@ pub fn ldx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     nes.cpu.registers.x = value;
     nes.cpu.registers.set_flags(value);
     cycles
-    
 }
 
 pub fn lda(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
@@ -20,7 +21,6 @@ pub fn lda(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     nes.cpu.registers.a = value;
     nes.cpu.registers.set_flags(value);
     cycles
-    
 }
 
 pub fn ldy(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
@@ -29,20 +29,19 @@ pub fn ldy(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     nes.cpu.registers.y = value;
     nes.cpu.registers.set_flags(value);
     cycles
-    
 }
 
 pub fn sta(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     nes.set(address, nes.cpu.registers.a);
-    
+
     cycles
 }
 
 pub fn stx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     nes.set(address, nes.cpu.registers.x);
-    
+
     cycles
 }
 
@@ -330,7 +329,7 @@ pub fn asl(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         // operate per addressing mode
         let address = nes.get_address_from_mode(addressing);
         let mut value = nes.get(address);
-        if value & 1<<7 == 1<<7 {
+        if value & 1 << 7 == 1 << 7 {
             nes.cpu.registers.set_carry();
         } else {
             nes.cpu.registers.clear_carry();
@@ -379,7 +378,7 @@ pub fn rol(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         // operate on the accumulator
         let mut value = nes.cpu.registers.a;
         let carry = nes.cpu.registers.get_carry();
-        if value & 1<<7 == 1<<7 {
+        if value & 1 << 7 == 1 << 7 {
             nes.cpu.registers.set_carry();
         } else {
             nes.cpu.registers.clear_carry();
@@ -393,7 +392,7 @@ pub fn rol(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         let address = nes.get_address_from_mode(addressing);
         let mut value = nes.get(address);
         let carry = nes.cpu.registers.get_carry();
-        if value & 1<<7 == 1<<7 {
+        if value & 1 << 7 == 1 << 7 {
             nes.cpu.registers.set_carry();
         } else {
             nes.cpu.registers.clear_carry();
@@ -406,18 +405,14 @@ pub fn rol(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     cycles
 }
 
-
 // compare family --------------------------------------------------------------
 pub fn cmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address);
     let compare = nes.cpu.registers.a as i16 - value as i16;
-    // println!("cmp: {:02X}", compare);
     if compare >= 0 {
-        // println!("setting carry");
         nes.cpu.registers.set_carry();
     } else {
-        // println!("clearing carry");
         nes.cpu.registers.clear_carry();
     }
     nes.cpu.registers.set_flags(compare as u8);
@@ -464,7 +459,7 @@ pub fn bit(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 // jump & branch family ----------------------------------------------------------------
 pub fn jsr(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let jump_address = nes.get_short(nes.cpu.registers.pc);
-    
+
     // todo: validate this stays correct with tests
     // skip two bytes because above call didn't advance PC when reading 2 bytes
     // but subtract one from the value because its a quirk of the cpu evidently
@@ -480,7 +475,6 @@ pub fn jmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 }
 pub fn rts(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.stack_pop_short();
-
     // add one back to the value we got since we subtracted one in jsr
     // todo: add tests to show this has the right value
     let pc = value.wrapping_add(1);
@@ -578,19 +572,72 @@ pub fn bmi(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     }
     cycles
 }
-// stub implementations provided by codegen crate:
-
-
-
-pub fn cli(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "cli");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
+/////////////////////////////////////////////////////////////////////////////
+// extra / extended / undocumented or unofficial opcodes
+pub fn ign(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}
+pub fn lax(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    let address = nes.get_address_from_mode(addressing);
+    let value = nes.get(address);
+    nes.cpu.registers.a = value;
+    nes.cpu.registers.x = value;
+    nes.cpu.registers.set_flags(value);
     cycles
 }
 
+//////////////////////////////////////////////////////////////////////////////
 
+pub fn alr(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}
+pub fn anc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}
+pub fn arr(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}
+pub fn axs(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}
 
+pub fn dcp(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}
 
+pub fn isc(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}
 
+pub fn rla(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}
+pub fn rra(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}
+pub fn sax(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}
 
+pub fn skb(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}
+pub fn slo(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}
+pub fn sre(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    let _ = nes.get_address_from_mode(addressing);
+    cycles
+}

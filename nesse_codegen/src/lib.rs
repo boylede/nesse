@@ -1,8 +1,7 @@
-/// All code related to loading and running each day
-use std::fmt;
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Cursor, Seek, SeekFrom, Write};
+use std::{fmt, ops::Add};
 
 use select::document::Document;
 use select::node::Node;
@@ -14,6 +13,12 @@ use nesse_common::{
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 
+const RENAME_LIST: &[(&str, &str)] = &[
+    ("*IGN", "*NOP"),
+    ("*SKB", "*NOP"),
+    ("*ADC", "*SBC"), // ? this are wildly different
+];
+
 pub fn generate_opcode_list() -> Vec<NesOpcode> {
     let basic_reference = Document::from(include_str!("..\\reference\\6502 Reference.html"));
     let mut opcodes: Vec<NesOpcode> = vec![];
@@ -21,8 +26,54 @@ pub fn generate_opcode_list() -> Vec<NesOpcode> {
         let mut opcode = read_opcode_definition(section);
         opcodes.append(&mut opcode);
     }
-
+    let extended_reference = include_str!("..\\reference\\undocumented.md");
+    let extended_opcodes: Vec<NesOpcode> = extended_reference
+        .split('\n')
+        .filter(|line| !line.starts_with(' '))
+        .filter(|line| line.len() > 1)
+        // .inspect(|line| {
+        //     println!("{}", line);
+        // })
+        .flat_map(|line| {
+            let (name, rest) = line.split_at(3);
+            let name = format!("*{}", name);
+            // println!("{}\t------------", name);
+            let (addressing_string, rest) = rest.rsplit_once('(').unwrap();
+            // println!("<{}>", addressing_string);
+            let address_mode = AddressingMode::from_str_short_version(addressing_string);
+            let (variants, cycle_str) = rest.split_once(';').unwrap();
+            // println!("FACEDELIMETER");
+            let cycles = cycle_str
+                .split_ascii_whitespace()
+                .next()
+                .unwrap()
+                .parse::<u8>()
+                .unwrap();
+            // println!("cycles: {}", cycles);
+            // let cycles =
+            let meta = NesMetaOpcode {
+                name: name.clone(),
+                description: String::new(), // todo from one of the split lines?
+                status: StatusFlags::new(),
+            };
+            variants.split(',').map(move |opcode_str| {
+                let mut members = opcode_str.split_ascii_whitespace();
+                let (_dollar_sign, number) = members.next().unwrap().split_at(1);
+                let parameters: Vec<String> = members.map(|s| s.to_owned()).collect();
+                // println!("<{}: {:?}>", number, parameters);
+                NesOpcode {
+                    meta: meta.clone(),
+                    addressing: address_mode,
+                    opcode: u8::from_str_radix(number, 16).unwrap(),
+                    bytes: (parameters.len() + 1) as u8,
+                    cycles: CyclesCost::Always(cycles), // todo
+                }
+            })
+        })
+        .collect();
+    opcodes.extend_from_slice(&extended_opcodes);
     opcodes
+    // extended_opcodes
 }
 
 struct JumpListEntryGenerator {
@@ -63,13 +114,22 @@ pub fn generate_opcode_name_list(known_opcodes: &Vec<NesOpcode>) -> TokenStream 
             .iter()
             .find(|op| op.opcode == opcode_number as u8)
         {
-            let entry = OpcodeName(
+            let mut entry = OpcodeName(
                 opcode.opcode,
                 opcode.meta.name.to_string().to_ascii_uppercase(),
             );
+            if let Some((from, to)) = RENAME_LIST
+                .iter()
+                .filter(|(from, _)| opcode.meta.name.as_str() == *from)
+                .next()
+            {
+                // println!("renaming op {} to {}", from, to);
+                entry.1 = (*to).to_owned();
+            }
             opcodes.push(entry);
         } else {
-            let entry = OpcodeName(opcode_number as u8, "XXX".to_string());
+            println!("no data for opcode {:02X}", opcode_number);
+            let entry = OpcodeName(opcode_number as u8, "*XXX".to_string());
             opcodes.push(entry);
         }
     }
@@ -88,7 +148,13 @@ pub fn generate_opcode_name_list(known_opcodes: &Vec<NesOpcode>) -> TokenStream 
 }
 
 fn generate_opcode_stub(name: String) -> TokenStream {
-    let ident = Ident::new(&name, Span::call_site());
+    let ident = if name.len() == 3 {
+        Ident::new(&name, Span::call_site())
+    } else {
+        // extra opcodes include asterisk in name
+        let name: String = name.chars().filter(|c| c.is_ascii_alphabetic()).collect();
+        Ident::new(&name, Span::call_site())
+    };
     quote! {
         pub fn #ident(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
             println!("{} unimplemented", #name);
@@ -125,7 +191,19 @@ pub fn generate_jumplist(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
             .iter()
             .find(|op| op.opcode == opcode_number as u8)
         {
-            let ident = Ident::new(&opcode.meta.name.to_ascii_lowercase(), Span::call_site());
+            let ident = if opcode.meta.name.len() == 3 {
+                Ident::new(&opcode.meta.name.to_ascii_lowercase(), Span::call_site())
+            } else {
+                // extra opcodes include asterisk in name
+                let name: String = opcode
+                    .meta
+                    .name
+                    .chars()
+                    .filter(|c| c.is_ascii_alphabetic())
+                    .collect();
+                Ident::new(&name.to_ascii_lowercase(), Span::call_site())
+            };
+            // let ident = Ident::new(&opcode.meta.name.to_ascii_lowercase(), Span::call_site());
             let jle = JumpListEntryGenerator {
                 index: opcode_number as u8,
                 ident,

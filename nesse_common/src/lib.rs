@@ -20,7 +20,7 @@ pub struct NesMetaOpcode {
     pub status: StatusFlags,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NesOpcode {
     pub meta: NesMetaOpcode,
     pub addressing: AddressingMode,
@@ -68,6 +68,7 @@ pub enum AddressingMode {
 }
 
 impl AddressingMode {
+    /// decode the syntax found on obelisk.me.uk/6502
     pub fn from_str(str: &str) -> AddressingMode {
         use AddressingMode::*;
         let st = str.to_string();
@@ -87,6 +88,24 @@ impl AddressingMode {
             "(Indirect,X)" => IndexedIndirect,
             "(Indirect),Y" => IndirectIndexed,
             _ => panic!("not found {}", str),
+        }
+    }
+    /// decode the syntax found on the nesdev wiki
+    pub fn from_str_short_version(str: &str) -> AddressingMode {
+        let string: String = str.split_ascii_whitespace().collect();
+        use AddressingMode::*;
+        match string.as_str() {
+            "#i" => Immediate,
+            "(d,X)" => IndexedIndirect,
+            "d" => ZeroPage,
+            "a" => Absolute,
+            "(d),Y" => IndirectIndexed,
+            "d,Y" => ZeroPageY,
+            "a,Y" => AbsoluteY,
+            "a,X" => AbsoluteX,
+            "d,X" => ZeroPageX,
+            "" => Implicit,
+            _ => unimplemented!(),
         }
     }
     pub const fn to_u8(&self) -> u8 {
@@ -143,7 +162,8 @@ impl CyclesCost {
     pub fn to_u8(&self) -> u8 {
         match self {
             CyclesCost::Always(n) => *n,
-            CyclesCost::PageDependant(n) => (*n as i8).wrapping_neg() as u8,
+            // CyclesCost::PageDependant(n) => (*n as i8).wrapping_neg() as u8, // todo: do something here
+            CyclesCost::PageDependant(n) => *n,
         }
     }
 }
@@ -157,4 +177,19 @@ pub struct StatusFlags {
     pub break_command: StatusOption,
     pub overflow: StatusOption,
     pub negative: StatusOption,
+}
+
+impl StatusFlags {
+    pub fn new() -> StatusFlags {
+        use StatusOption::*;
+        StatusFlags {
+            carry: Conditional,
+            zero: Conditional,
+            interupt_disable: Conditional,
+            decimal: Conditional,
+            break_command: Conditional,
+            overflow: Conditional,
+            negative: Conditional,
+        }
+    }
 }
