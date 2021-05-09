@@ -7,26 +7,54 @@ pub mod opcode_debug;
 // load & store family --------------------------------------------------------
 pub fn ldx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    let value = nes.get(address);
-    nes.cpu.registers.x = value;
-    nes.cpu.registers.set_flags(value);
-    cycles
+    if addressing == 7 {
+        // absolute mode - loads a short
+        let deref = nes.get_short(address);
+        let value = nes.get(deref);
+        nes.cpu.registers.x = value;
+        nes.cpu.registers.set_flags(value);
+        cycles
+    } else {
+        let value = nes.get(address);
+        nes.cpu.registers.x = value;
+        nes.cpu.registers.set_flags(value);
+        cycles
+    }
+
 }
 
 pub fn lda(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    let value = nes.get(address);
-    nes.cpu.registers.a = value;
-    nes.cpu.registers.set_flags(value);
-    cycles
+    if addressing == 7 {
+        // absolute mode - loads a short
+        let deref = nes.get_short(address);
+        let value = nes.get(deref);
+        nes.cpu.registers.a = value;
+        nes.cpu.registers.set_flags(value);
+        cycles
+    } else {
+        let value = nes.get(address);
+        nes.cpu.registers.a = value;
+        nes.cpu.registers.set_flags(value);
+        cycles
+    }
 }
 
 pub fn ldy(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    let value = nes.get(address);
-    nes.cpu.registers.y = value;
-    nes.cpu.registers.set_flags(value);
-    cycles
+    if addressing == 7 {
+        // absolute mode - loads a short
+        let deref = nes.get_short(address);
+        let value = nes.get(deref);
+        nes.cpu.registers.y = value;
+        nes.cpu.registers.set_flags(value);
+        cycles
+    } else {
+        let value = nes.get(address);
+        nes.cpu.registers.y = value;
+        nes.cpu.registers.set_flags(value);
+        cycles
+    }
 }
 
 pub fn sta(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
@@ -37,24 +65,28 @@ pub fn sta(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 
 pub fn stx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    nes.set(address, nes.cpu.registers.x);
+    let deref = nes.get_short(address);
+    nes.set(deref, nes.cpu.registers.x);
     cycles
 }
 
 // stack-related loads and stores ---------------------------------------
 
+/// push p to stack
 pub fn php(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.cpu.registers.get_status_stack();
     nes.stack_push(value);
     cycles
 }
 
+/// pull p from stack
 pub fn plp(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.stack_pop();
     nes.cpu.registers.set_status_stack(value);
     cycles
 }
 
+/// pull a from stack
 pub fn pla(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.stack_pop();
     nes.cpu.registers.set_flags(value);
@@ -62,12 +94,14 @@ pub fn pla(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     cycles
 }
 
+/// push a to stack
 pub fn pha(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.cpu.registers.a;
     nes.stack_push(value);
     cycles
 }
 
+/// transfer stackpointer to x
 pub fn tsx(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.cpu.registers.sp;
     nes.cpu.registers.x = value;
@@ -75,6 +109,7 @@ pub fn tsx(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     cycles
 }
 
+/// transfer x to stackpointer
 pub fn txs(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.cpu.registers.x;
     nes.cpu.registers.sp = value;
@@ -277,9 +312,12 @@ pub fn cmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address);
     let compare = nes.cpu.registers.a as i16 - value as i16;
-    if compare <= 0 {
+    // println!("cmp: {:02X}", compare);
+    if compare >= 0 {
+        // println!("setting carry");
         nes.cpu.registers.set_carry();
     } else {
+        // println!("clearing carry");
         nes.cpu.registers.clear_carry();
     }
     nes.cpu.registers.set_flags(compare as u8);
@@ -289,7 +327,7 @@ pub fn cpx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address);
     let compare = nes.cpu.registers.x as i16 - value as i16;
-    if compare <= 0 {
+    if compare >= 0 {
         nes.cpu.registers.set_carry();
     } else {
         nes.cpu.registers.clear_carry();
@@ -301,7 +339,7 @@ pub fn cpy(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address);
     let compare = nes.cpu.registers.y as i16 - value as i16;
-    if compare <= 0 {
+    if compare >= 0 {
         nes.cpu.registers.set_carry();
     } else {
         nes.cpu.registers.clear_carry();
@@ -326,12 +364,15 @@ pub fn bit(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 // jump & branch family ----------------------------------------------------------------
 pub fn jsr(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let jump_address = nes.get_short(nes.cpu.registers.pc);
+    
     // todo: validate this stays correct with tests
     // skip two bytes because above call didn't advance PC when reading 2 bytes
     // but subtract one from the value because its a quirk of the cpu evidently
     let return_address = nes.cpu.registers.pc + 2 - 1;
-
-    nes.stack_push_short(return_address);
+    let lo = (return_address & 0xff) as u8;
+    let hi = ((return_address >> 8) & 0xff) as u8;
+    nes.stack_push(hi);
+    nes.stack_push(lo);
     nes.cpu.registers.pc = jump_address;
     cycles
 }
@@ -342,7 +383,10 @@ pub fn jmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     cycles
 }
 pub fn rts(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.stack_pop_short();
+    let lo = nes.stack_pop() as u16;
+    let hi = nes.stack_pop() as u16;
+    let value = (hi << 8) | lo;
+
     // add one back to the value we got since we subtracted one in jsr
     // todo: add tests to show this has the right value
     let pc = value.wrapping_add(1);
