@@ -86,9 +86,28 @@ impl NesPeripheral for Spy {
             }
             7 => {
                 // Absolute
-                let value = nes.get_short(pc+1); // adding one since pc hasn't been incremented past opcode at this point
-                line.push_str(&format!("${:04X}", value));
-                len = 5;
+                let value = nes.get_short(pc + 1); // adding one since pc hasn't been incremented past opcode at this point
+                let dereferenced = nes.get(value);
+                use OpGroup::*;
+                match opcode_group(opcode) {
+                    Control => {
+                        line.push_str(&format!("${:04X}", value));
+                        len = 5;
+                    },
+                    Alu => {
+                        line.push_str(&format!("${:04X} = {:02X}", value, dereferenced));
+                        len = 10;
+                    },
+                    Rmw => {
+                        line.push_str(&format!("${:04X} = {:02X}", value, dereferenced));
+                        len = 10;
+                    },
+                    Unoff => {
+                        line.push_str(&format!("${:04X}", value));
+                        len = 5;
+                    },
+                }
+                
             }
             8 => {
                 // AbsoluteX
@@ -172,5 +191,23 @@ impl NesPeripheral for Spy {
 
         println!("{}", line);
         // println!("{}", stack);
+    }
+}
+
+enum OpGroup {
+    Control,
+    Alu,
+    Rmw,
+    Unoff,
+}
+
+fn opcode_group(opcode: u8) -> OpGroup {
+    let low = opcode & 0b11;
+    match (low | 0b10 == 0b10, low | 0b01 == 0b01) {
+        (false, false) => OpGroup::Control,
+        (false, true) => OpGroup::Alu,
+        (true, false) => OpGroup::Rmw,
+        (true, true) => OpGroup::Unoff,
+
     }
 }

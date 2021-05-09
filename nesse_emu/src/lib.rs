@@ -238,14 +238,15 @@ impl<'a> Nes<'a> {
         value
     }
     pub fn stack_push_short(&mut self, value: u16) {
-        self.stack_push((value & 0xff) as u8);
-        self.stack_push(((value >> 8) & 0xff) as u8);
+        let lo = (value & 0xff) as u8;
+        let hi = ((value >> 8) & 0xff) as u8;
+        self.stack_push(hi);
+        self.stack_push(lo);
     }
     pub fn stack_pop_short(&mut self) -> u16 {
-        let high = self.stack_pop() as u16;
-        let low = self.stack_pop() as u16;
-        let value = (high << 8) | low;
-        value
+        let lo = self.stack_pop() as u16;
+        let hi = self.stack_pop() as u16;
+        (hi << 8) | lo
     }
     /// steps into one instruction. returns the number of cycles consumed
     pub fn step(&mut self) -> usize {

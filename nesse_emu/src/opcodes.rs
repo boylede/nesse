@@ -209,6 +209,17 @@ pub fn sei(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     nes.cpu.registers.set_interrupt();
     cycles
 }
+/// return from interrupt
+pub fn rti(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    let flags = nes.stack_pop();
+    let value = nes.stack_pop_short();
+    // add one back to the value we got since we subtracted one in jsr
+    // let pc = value.wrapping_add(1); // todo: why dont we add 1 here like rts?
+    nes.cpu.registers.pc = value;
+    nes.cpu.registers.set_status_stack(flags);
+    // nes.cpu.registers.p = flags;
+    cycles
+}
 
 // arithmetic family -----------------------------------------------------
 
@@ -264,7 +275,7 @@ pub fn lsr(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value << 1;
+        value = value >> 1;
         nes.cpu.registers.set_flags(value);
         nes.cpu.registers.a = value;
     } else {
@@ -276,7 +287,7 @@ pub fn lsr(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value << 1;
+        value = value >> 1;
         nes.cpu.registers.set_flags(value);
         nes.set(address, value);
     }
@@ -304,6 +315,34 @@ pub fn eor(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.get(address) ^ nes.cpu.registers.a;
     nes.cpu.registers.a = value;
     nes.cpu.registers.set_flags(value);
+    cycles
+}
+
+pub fn asl(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
+    if addressing == 1 {
+        // operate on the accumulator
+        let mut value = nes.cpu.registers.a;
+        if value & 1<<7 == 1<<7 {
+            nes.cpu.registers.set_carry();
+        } else {
+            nes.cpu.registers.clear_carry();
+        }
+        value = value << 1;
+        nes.cpu.registers.set_flags(value);
+        nes.cpu.registers.a = value;
+    } else {
+        // operate per addressing mode
+        let address = nes.get_address_from_mode(addressing);
+        let mut value = nes.get(address);
+        if value & 1<<7 == 1<<7 {
+            nes.cpu.registers.set_carry();
+        } else {
+            nes.cpu.registers.clear_carry();
+        }
+        value = value << 1;
+        nes.cpu.registers.set_flags(value);
+        nes.set(address, value);
+    }
     cycles
 }
 
@@ -369,10 +408,7 @@ pub fn jsr(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     // skip two bytes because above call didn't advance PC when reading 2 bytes
     // but subtract one from the value because its a quirk of the cpu evidently
     let return_address = nes.cpu.registers.pc + 2 - 1;
-    let lo = (return_address & 0xff) as u8;
-    let hi = ((return_address >> 8) & 0xff) as u8;
-    nes.stack_push(hi);
-    nes.stack_push(lo);
+    nes.stack_push_short(return_address);
     nes.cpu.registers.pc = jump_address;
     cycles
 }
@@ -383,9 +419,7 @@ pub fn jmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     cycles
 }
 pub fn rts(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let lo = nes.stack_pop() as u16;
-    let hi = nes.stack_pop() as u16;
-    let value = (hi << 8) | lo;
+    let value = nes.stack_pop_short();
 
     // add one back to the value we got since we subtracted one in jsr
     // todo: add tests to show this has the right value
@@ -486,12 +520,7 @@ pub fn bmi(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 }
 // stub implementations provided by codegen crate:
 
-pub fn asl(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented: {}", "asl", addressing);
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
+
 
 pub fn cli(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "cli");
@@ -519,12 +548,7 @@ pub fn ror(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     nes.cpu.registers.pc -= 1;
     cycles
 }
-pub fn rti(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
-    println!("{} unimplemented", "rti");
-    nes.cpu.running = false;
-    nes.cpu.registers.pc -= 1;
-    cycles
-}
+
 
 pub fn sty(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
     println!("{} unimplemented", "sty");

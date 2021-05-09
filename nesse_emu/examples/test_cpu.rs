@@ -1,8 +1,13 @@
-use nesse_emu::prelude::*;
 use nesse_emu::peripherals::Spy;
+use nesse_emu::prelude::*;
 
 const ROM: &[u8] = include_bytes!("nestest.nes");
 const LABEL_LIST: &[(u16, &str)] = &[];
+
+// use awk to strip cycles info:
+// cargo run --example test_cpu > out.txt
+// cat out.txt | awk '{print substr($0,0, 73)}' > out_nocycle.log
+// diff --left-column -W 154 -y out_nocycle.log nestest_nocycle.log > diff.txt
 
 fn main() {
     let snake_cartridge = NesCart::from_slice(&ROM).expect("constant rom failed to load");
