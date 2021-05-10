@@ -5,10 +5,10 @@ use std::io::Read;
 #[cfg(test)]
 mod test;
 
-pub mod peripherals;
-mod opcodes;
-#[cfg(feature="delta")]
+#[cfg(feature = "delta")]
 mod emulator_state;
+mod opcodes;
+pub mod peripherals;
 
 pub use opcodes::opcode_debug::opcode_names;
 
@@ -22,17 +22,22 @@ pub use opcodes::jumptable::OPCODE_JUMPTABLE;
 // the value loaded into pc is stored in this location
 const INITIAL_PC_LOCATION: u16 = 0xfffc;
 // A value added to the SP on every stack operation
-const STACK_OFFSET: u16 = 1 << 8;
+pub const STACK_OFFSET: u16 = 1 << 8;
 /// The value of the stack pointer on reset
-const STACK_INITIAL: u8 = 0xFD;
+pub const STACK_INITIAL: u8 = 0xFD;
 /// the value of the status register on reset
-const STATUS_INITIAL: u8 = 0b100100;
+const STATUS_INITIAL: u8 = 0b00100100;
 
 /// allows a function to be called by an instance of the NES at each tick
 pub trait NesPeripheral {
+    /// run on nes init
     fn init(&mut self, nes: &mut Nes) {}
+    /// run on cpu tick
     fn tick(&mut self, nes: &mut Nes) {}
+    /// run on nes end
     fn cleanup(&mut self, nes: &mut Nes) {}
+    /// runs once per frame
+    fn on_vblank(&mut self, nes: &mut Nes) {}
 }
 
 /// an instance of an NES machine
@@ -47,6 +52,7 @@ pub struct Nes<'a> {
     // todo: switch to enum_dispatch
     peripherals: Option<Vec<&'a mut NesPeripheral>>,
 }
+
 #[test]
 fn nes_size() {
     let nes = std::mem::size_of::<Nes>();
@@ -56,10 +62,43 @@ fn nes_size() {
     // assert_eq!(mw, 4 );
     // assert_eq!(rw, 6 );
     // assert_eq!(gw, 1 );
-    assert_eq!(nes, 16 );
+    assert_eq!(nes, 16);
 }
 
 impl<'a> Nes<'a> {
+    /// a single tick of the master clock
+    pub fn master_tick(&mut self) {
+        self.ppu.clock_counter += 1;
+        if self.ppu.clock_counter >= 4 {
+            self.ppu.tick(&mut self.cartridge);
+            self.ppu.clock_counter -= 4;
+        }
+        self.cpu.clock_counter += 1;
+        if self.cpu.clock_counter >= 12 {
+            self.step();
+            self.cpu.clock_counter -= 12;
+            self.ppu.frame_clock += 1;
+            if self.ppu.frame_clock >= 29780 {
+                // note: alternate +1 on odd frames
+                self.ppu.frame_clock -= 29780;
+                self.on_frame();
+            }
+        }
+    }
+    pub fn master_clock_drive(&mut self) {
+        self.cpu.running = true;
+        while self.cpu.running {
+            self.master_tick();
+        }
+    }
+    pub fn on_frame(&mut self) {
+        if let Some(mut peripherals) = self.peripherals.take() {
+            for p in peripherals.iter_mut() {
+                p.on_vblank(self);
+            }
+            self.peripherals.replace(peripherals);
+        }
+    }
     pub fn load_rom(&mut self, rom: &[u8]) {
         NesCart::from_slice(rom);
         unimplemented!()
@@ -272,7 +311,7 @@ impl<'a> Nes<'a> {
         (hi << 8) | lo
     }
     /// steps into one instruction. returns the number of cycles consumed
-    pub fn step(&mut self) -> usize {
+    pub fn step(&mut self) -> u64 {
         // println!("stepping");
         if let Some(mut peripherals) = self.peripherals.take() {
             for p in peripherals.iter_mut() {
@@ -330,11 +369,12 @@ impl<'a> AddressableMemory for Nes<'a> {
         if address < 0x2000 {
             // nes base ram
             self.ram.set(address, value);
-        } else if address < 0x4020 {
-            // other hardware
+        } else if address < 0x4000 {
+            // ppu access
             self.ppu.set(address, value);
-            // println!("wanted to write {:02X} to address {:04X}", value, address);
-            // unimplemented!()
+        } else if address < 0x4020 {
+            // apu registers
+            self.apu.set(address, value);
         } else {
             // other addresses handled by cartridge
             if let Some(cart) = &mut self.cartridge {
@@ -344,12 +384,14 @@ impl<'a> AddressableMemory for Nes<'a> {
     }
     fn get(&self, address: u16) -> u8 {
         if address < 0x2000 {
+            // nes base ram
             self.ram.get(address)
-        } else if address < 0x4020 {
-            // other hardware
+        } else if address < 0x4000 {
+            // ppu access
             self.ppu.get(address)
-            // println!("wanted to read address {:04X}", address);
-            // unimplemented!()
+        } else if address < 0x4020 {
+            // apu registers
+            self.apu.get(address)
         } else {
             // other addresses handled by cartridge
             if let Some(cart) = &self.cartridge {
@@ -761,8 +803,82 @@ impl NesRegisters {
     }
 }
 
-#[derive(Default)]
-pub struct Nes2c02;
+/// nes ppu instance
+pub struct Nes2c02 {
+    controller: u8,
+    mask: u8,
+    status: u8,
+    oam_address: u8,
+    oam_data: u8,
+    scroll: u8,
+    address: u8,
+    data: u8,
+    oam_dma: u8,
+    // 0, 1, 2, or 3 to indicate syncronization between cpu and ppu clocks
+    timing: u8,
+    clock_counter: u8,
+    frame_clock: u16,
+    pallete_table: [u8; 32],
+    vram: [u8; 2048],
+    oam: [u8; 256],
+}
+
+impl Nes2c02 {
+    pub fn tick(&mut self, cart: &mut Option<NesCart>) {
+        // tick
+    }
+}
+impl AddressableMemory for Nes2c02 {
+    fn bounds(&self) -> (u16, u16) {
+        unimplemented!()
+    }
+    fn set(&mut self, address: u16, value: u8) {
+        if address < 0x2000 {
+            // nes base ram
+        } else if address < 0x4020 {
+            // other hardware
+            println!("837: wanted to write {:02X} to address {:04X}", value, address);
+            unimplemented!()
+        } else {
+            // other addresses handled by cartridge
+            unimplemented!()
+        }
+    }
+    fn get(&self, address: u16) -> u8 {
+        if address < 0x2000 {
+            unimplemented!()
+        } else if address < 0x4020 {
+            // other hardware
+            println!("849: wanted to read address {:04X}", address);
+            0
+        } else {
+            // other addresses handled by cartridge
+            unimplemented!()
+        }
+    }
+}
+
+impl Default for Nes2c02 {
+    fn default() -> Nes2c02 {
+        Nes2c02 {
+            controller: 0u8,
+            mask: 0u8,
+            status: 0u8,
+            oam_address: 0u8,
+            oam_data: 0u8,
+            scroll: 0u8,
+            address: 0u8,
+            data: 0u8,
+            oam_dma: 0u8,
+            timing: 0u8,
+            clock_counter: 0u8,
+            frame_clock: 0u16,
+            pallete_table: [0u8; 32],
+            vram: [0u8; 2048],
+            oam: [0u8; 256],
+        }
+    }
+}
 
 pub trait RegisterAccess {
     fn get_a(&self) -> u8;
@@ -916,7 +1032,8 @@ impl AddressableMemory for NesRam {
     }
     fn set(&mut self, address: u16, value: u8) {
         if self.bounds_check(address) {
-            self.inner[address as usize] = value;
+            let mirror = address & 0x7ff;
+            self.inner[mirror as usize] = value;
         }
     }
     fn get(&self, address: u16) -> u8 {
@@ -929,7 +1046,48 @@ impl AddressableMemory for NesRam {
 }
 
 #[derive(Default)]
-pub struct Nes2a03Audio;
+pub struct Nes2a03Audio {
+    /// apu register $4000,$4001,$4002,$4003,
+    // pulse_1: u32,
+    /// apu register $4004,$4005,$4006,$4007,
+    // pulse_2: u32,
+    /// apu register $4008,$4009,$400A,$400B,
+    // triangle: u32,
+    /// apu register $400C,$400D,$400E,$400F,
+    // noise: u32,
+    /// apu register $4010,$4011,$4012,$4013,
+    // dmc: u32,
+    /// apu register $4015
+    // status: u8,
+    /// apu register $4017
+    /// also called frame counter in docs
+    // frame_sequencer: u8,
+    registers: [u8;0x18],
+}
+
+impl AddressableMemory for Nes2a03Audio {
+    fn bounds(&self) -> (u16, u16) {
+        (0x4000, 0x401F)
+    }
+    fn set(&mut self, address: u16, value: u8) {
+        let offset = address.wrapping_sub(0x4000);
+        // println!("check: {} vs {}", address, offset);
+        if offset < 0x18 {
+            self.registers[offset as usize] = value;
+        } else {
+            panic!("attempted to set invalid memory range in apu. {:04X} = {:02X}", address, value);
+        }
+    }
+    fn get(&self, address: u16) -> u8 {
+        let offset = address.wrapping_sub(0x4000);
+        // println!("check: {} vs {}", address, offset);
+        if offset < 0x18 {
+            self.registers[offset as usize]
+        } else {
+            panic!("attempted to get invalid memory range in apu. {:04X}", address);
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct NesGamepad;

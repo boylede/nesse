@@ -474,12 +474,21 @@ pub fn jmp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     cycles
 }
 pub fn rts(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.stack_pop_short();
-    // add one back to the value we got since we subtracted one in jsr
-    // todo: add tests to show this has the right value
-    let pc = value.wrapping_add(1);
-    nes.cpu.registers.pc = pc;
-    cycles
+    if nes.cpu.registers.sp != super::STACK_INITIAL {
+        let value = nes.stack_pop_short();
+        // add one back to the value we got since we subtracted one in jsr
+        // todo: add tests to show this has the right value
+        let pc = value.wrapping_add(1);
+        nes.cpu.registers.pc = pc;
+        cycles
+    } else {
+        // main loop is over?
+        println!("rts resulted in stack underflow. stopping.");
+        nes.cpu.registers.pc -= 1;
+        nes.cpu.running = false;
+        cycles
+    }
+    
 }
 
 pub fn beq(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
