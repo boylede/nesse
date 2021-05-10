@@ -88,8 +88,8 @@ SRE a,X ($5F aa aa; 7 cycles)
 
     Some instructions are equivalent to others. One possible use of these is for watermarking your binary if you want to make leaked executables traceable, such as copies of the ROM sent to testers or even individual cartridges sent to end users.
 
-ADC #i ($69 ii, $E9 ii^$FF, $EB ii^$FF; 2 cycles)
-SBC #i ($69 ii^$FF, $E9 ii, $EB ii; 2 cycles)
+SBC #i ($EB ii; 2 cycles)
+    <edit: i've removed the "official" instructions from above so they are not parsed>
     $69 and $E9 are official; $EB is not. These three opcodes are nearly equivalent, except that $E9 and $EB add 255-i instead of i.
 
     NOPs
