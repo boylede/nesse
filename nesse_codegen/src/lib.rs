@@ -17,6 +17,7 @@ const RENAME_LIST: &[(&str, &str)] = &[
     ("*IGN", "*NOP"),
     ("*SKB", "*NOP"),
     ("*ADC", "*SBC"), // ? this are wildly different
+    ("*ISC", "*ISB"),
 ];
 
 pub fn generate_opcode_list() -> Vec<NesOpcode> {
@@ -395,4 +396,8 @@ fn is_not_affected(row: Node) -> StatusOption {
     } else {
         StatusOption::Conditional
     }
+}
+
+fn read_extra_opcode_definition() {
+    //
 }
