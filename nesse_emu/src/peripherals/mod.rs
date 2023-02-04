@@ -1,4 +1,16 @@
 use crate::prelude::*;
+/// allows a function to be called by an instance of the NES at each tick
+pub trait NesPeripheral {
+    /// run on nes init
+    fn init(&mut self, nes: &mut Nes) {}
+    /// run on cpu tick
+    fn tick(&mut self, nes: &mut Nes) {}
+    /// run on nes end
+    fn cleanup(&mut self, nes: &mut Nes) {}
+    /// runs once per frame
+    fn on_vblank(&mut self, nes: &mut Nes) {}
+}
+
 pub struct Spy(&'static [(u16, &'static str)]);
 
 impl Spy {
@@ -118,7 +130,7 @@ impl NesPeripheral for Spy {
                 // AbsoluteX
                 // $0633,X @ 0633 = AA
                 let value = nes.get_short(pc + 1); // adding one since pc hasn't been incremented past opcode at this point
-                let total = value.wrapping_add(nes.cpu.registers.x as u16);
+                let total = value.wrapping_add(nes.cpu.get_x() as u16);
                 let dereferenced = nes.get(total);
                 line.push_str(&format!(
                     "${:04X},X @ {:04X} = {:02X}",
@@ -129,7 +141,7 @@ impl NesPeripheral for Spy {
             9 => {
                 // AbsoluteY
                 let value = nes.get_short(pc + 1); // adding one since pc hasn't been incremented past opcode at this point
-                let total = value.wrapping_add(nes.cpu.registers.y as u16);
+                let total = value.wrapping_add(nes.cpu.get_y() as u16);
                 let dereferenced = nes.get(total);
                 use OpGroup::*;
                 // todo: fix this mess
@@ -185,7 +197,7 @@ impl NesPeripheral for Spy {
             10 => {
                 // Indirect
 
-                let address = nes.get_short(nes.cpu.registers.pc + 1);
+                let address = nes.get_short(nes.cpu.get_pc() + 1);
 
                 let address_lo = (address & 0xff) as u8;
                 let address_hi = address & 0xff00;
@@ -262,7 +274,7 @@ impl NesPeripheral for Spy {
             line.push_str("PPU:");
             line.push_str(&format!("{:>3},{:>3} ", ppu_thousands, ppu_hundreds));
         }
-        let cpu_cycle = nes.cpu.cycles;
+        let cpu_cycle = nes.cpu.get_cycles();
         line.push_str(&format!("CYC:{}", cpu_cycle));
 
         let stack = nes.dump_stack();

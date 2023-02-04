@@ -28,18 +28,6 @@ pub const STACK_INITIAL: u8 = 0xFD;
 /// the value of the status register on reset
 const STATUS_INITIAL: u8 = 0b00100100;
 
-/// allows a function to be called by an instance of the NES at each tick
-pub trait NesPeripheral {
-    /// run on nes init
-    fn init(&mut self, nes: &mut Nes) {}
-    /// run on cpu tick
-    fn tick(&mut self, nes: &mut Nes) {}
-    /// run on nes end
-    fn cleanup(&mut self, nes: &mut Nes) {}
-    /// runs once per frame
-    fn on_vblank(&mut self, nes: &mut Nes) {}
-}
-
 /// an instance of an NES machine
 #[derive(Default)]
 pub struct Nes<'a> {
