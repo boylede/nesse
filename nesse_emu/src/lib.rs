@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::Write;
 use std::io::Read;
 
@@ -8,30 +7,30 @@ mod test;
 #[cfg(feature = "delta")]
 mod emulator_state;
 
-mod opcodes;
-pub mod peripherals;
 pub mod cartridge;
 pub mod cpu;
+mod opcodes;
+pub mod peripherals;
 pub mod ppu;
 
-pub use opcodes::opcode_debug::opcode_names;
+pub use opcodes::opcode_debug::OPCODE_NAMES;
 
 pub mod prelude {
     // todo: select useful items to include in prelude
-    pub use crate::*;
-    pub use crate::peripherals::NesPeripheral;
     pub use crate::cartridge::NesCart;
-    pub use crate::cpu::{RegisterAccess, NesRegisters};
+    pub use crate::cpu::{NesRegisters, RegisterAccess};
+    pub use crate::peripherals::NesPeripheral;
     pub use crate::ppu::Nes2c02;
+    pub use crate::*;
 }
 
 pub use opcodes::jumptable::OPCODE_JUMPTABLE;
 
-use peripherals::NesPeripheral;
 use crate::cartridge::NesCart;
-use crate::cpu::{RegisterAccess, NesRegisters};
 use crate::cpu::Nes2a03;
+use crate::cpu::{NesRegisters, RegisterAccess};
 use crate::ppu::Nes2c02;
+use peripherals::NesPeripheral;
 
 // the value loaded into pc is stored in this location
 const INITIAL_PC_LOCATION: u16 = 0xfffc;
@@ -140,14 +139,14 @@ impl<'a> Nes<'a> {
         self.set_region(address, memory);
         self
     }
-    pub fn with_peripheral(mut self, p: &'a mut NesPeripheral) -> Nes<'a> {
+    pub fn with_peripheral(mut self, p: &'a mut dyn NesPeripheral) -> Nes<'a> {
         self.add_peripheral(p);
         self
     }
     pub fn set_pc(&mut self, value: u16) {
         self.cpu.registers.pc = value;
     }
-    pub fn add_peripheral(&mut self, p: &'a mut NesPeripheral) {
+    pub fn add_peripheral(&mut self, p: &'a mut dyn NesPeripheral) {
         if let Some(ref mut v) = self.peripherals {
             v.push(p);
         } else {
@@ -230,8 +229,7 @@ impl<'a> Nes<'a> {
                 // Absolute
                 let value = self.cpu.registers.pc;
                 self.cpu.registers.pc += 2; // skips two bytes since pointers are a two byte value
-                let deref = self.get_short(value);
-                deref
+                self.get_short(value)
             }
             8 => {
                 // AbsoluteX
@@ -264,8 +262,7 @@ impl<'a> Nes<'a> {
                 let base = table.wrapping_add(self.cpu.registers.x);
                 let lo = self.get(base as u16) as u16;
                 let hi = self.get(base.wrapping_add(1) as u16) as u16;
-                let value = (hi << 8) | lo;
-                value
+                (hi << 8) | lo
             }
             12 => {
                 // IndirectIndexed (y)
@@ -334,9 +331,7 @@ impl<'a> Nes<'a> {
             self.cpu.next_tick = self.cpu.cycles + cycles_spent as u64;
         } else {
             self.cpu.cycles += 1;
-            let cycles_remaining: u64 = self.cpu.next_tick - self.cpu.cycles;
         }
-        
     }
     pub fn display_registers(&self) -> String {
         format!("{:?}", self.cpu.registers)
@@ -346,7 +341,7 @@ impl<'a> Nes<'a> {
         self.get(self.cpu.registers.pc)
     }
     pub fn insert_cartridge(&mut self, cart: NesCart) {
-        if let None = self.cartridge {
+        if self.cartridge.is_none() {
             self.cartridge = Some(cart);
         } else {
             //todo: do we need to unload the existing cart before discarding?
@@ -477,7 +472,7 @@ pub struct Nes2a03Audio {
     /// apu register $4017
     /// also called frame counter in docs
     // frame_sequencer: u8,
-    registers: [u8;0x18],
+    registers: [u8; 0x18],
 }
 
 impl AddressableMemory for Nes2a03Audio {
@@ -490,7 +485,10 @@ impl AddressableMemory for Nes2a03Audio {
         if offset < 0x18 {
             self.registers[offset as usize] = value;
         } else {
-            panic!("attempted to set invalid memory range in apu. {:04X} = {:02X}", address, value);
+            panic!(
+                "attempted to set invalid memory range in apu. {:04X} = {:02X}",
+                address, value
+            );
         }
     }
     fn get(&self, address: u16) -> u8 {
@@ -499,7 +497,10 @@ impl AddressableMemory for Nes2a03Audio {
         if offset < 0x18 {
             self.registers[offset as usize]
         } else {
-            panic!("attempted to get invalid memory range in apu. {:04X}", address);
+            panic!(
+                "attempted to get invalid memory range in apu. {:04X}",
+                address
+            );
         }
     }
 }

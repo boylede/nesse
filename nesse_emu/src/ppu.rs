@@ -22,7 +22,7 @@ pub struct Nes2c02 {
 pub enum AddressRegisterLatch {
     Unset,
     First(u8),
-    Second(u8,u8),
+    Second(u8, u8),
 }
 
 enum DataRegisterLatch {
@@ -31,7 +31,7 @@ enum DataRegisterLatch {
 }
 
 impl Nes2c02 {
-    pub fn tick(&mut self, cart: &mut Option<NesCart>) {
+    pub fn tick(&mut self, _cart: &mut Option<NesCart>) {
         // tick
     }
 }
@@ -44,54 +44,56 @@ impl AddressableMemory for Nes2c02 {
             // nes base ram
         } else if address < 0x4020 {
             // other hardware
-            println!("837: wanted to write {:02X} to address {:04X}", value, address);
+            println!(
+                "837: wanted to write {:02X} to address {:04X}",
+                value, address
+            );
             match address {
                 0x2000 => {
                     // controller
                     self.controller = value;
-                },
+                }
                 0x2001 => {
                     // mask
                     self.mask = value;
-                },
+                }
                 0x2002 => {
                     // status
                     self.status = value;
-                },
+                }
                 0x2003 => {
                     // oam address
                     self.oam_address = value;
-                },
+                }
                 0x2004 => {
                     // oam data
                     self.oam_data = value;
-                },
+                }
                 0x2005 => {
                     // scroll
                     self.scroll = value;
-                },
+                }
                 0x2006 => {
                     // address
                     match self.address {
                         AddressRegisterLatch::Unset => {
                             self.address = AddressRegisterLatch::First(value);
-                        },
+                        }
                         AddressRegisterLatch::First(hi) => {
-                            self.address = AddressRegisterLatch::Second(hi,value);
-                        },
-                        AddressRegisterLatch::Second(_,_) => {
+                            self.address = AddressRegisterLatch::Second(hi, value);
+                        }
+                        AddressRegisterLatch::Second(_, _) => {
                             self.address = AddressRegisterLatch::First(value);
-                        },
+                        }
                     }
-                },
+                }
                 0x2007 => {
                     // data not writable
-
-                },
+                }
                 0x4014 => {
                     // oam dma
                     self.oam_dma = value;
-                },
+                }
                 _ => {
                     unimplemented!()
                 }

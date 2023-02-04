@@ -176,7 +176,7 @@ impl NesRegisters {
         self.p = STATUS_INITIAL;
         // self.pc = todo: figure out how i want to handle multiple options here
     }
-    
+
     pub fn status_zero(&self) -> bool {
         self.p & FLAG_ZERO == FLAG_ZERO
     }

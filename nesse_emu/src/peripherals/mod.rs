@@ -2,13 +2,13 @@ use crate::prelude::*;
 /// allows a function to be called by an instance of the NES at each tick
 pub trait NesPeripheral {
     /// run on nes init
-    fn init(&mut self, nes: &mut Nes) {}
+    fn init(&mut self, _nes: &mut Nes) {}
     /// run on cpu tick
-    fn tick(&mut self, nes: &mut Nes) {}
+    fn tick(&mut self, _nes: &mut Nes) {}
     /// run on nes end
-    fn cleanup(&mut self, nes: &mut Nes) {}
+    fn cleanup(&mut self, _nes: &mut Nes) {}
     /// runs once per frame
-    fn on_vblank(&mut self, nes: &mut Nes) {}
+    fn on_vblank(&mut self, _nes: &mut Nes) {}
 }
 
 pub struct Spy(&'static [(u16, &'static str)]);
@@ -47,7 +47,7 @@ impl NesPeripheral for Spy {
                 line.push_str("   ");
             }
         }
-        let (_, name) = opcode_names[opcode as usize];
+        let (_, name) = OPCODE_NAMES[opcode as usize];
         if name.len() == 3 {
             line.push_str(&format!(" {} ", name));
         } else {
@@ -55,7 +55,7 @@ impl NesPeripheral for Spy {
             line.push_str(&format!("{} ", name));
         }
 
-        let mut len = 4;
+        let len;
         match mode {
             0 => {
                 // Implicit
@@ -64,7 +64,7 @@ impl NesPeripheral for Spy {
             }
             1 => {
                 // Accumulator
-                line.push_str("A");
+                line.push('A');
                 len = 1;
             }
             2 => {
@@ -147,28 +147,20 @@ impl NesPeripheral for Spy {
                 // todo: fix this mess
                 match opcode_group(opcode) {
                     Control => {
-                        if opcode & 0xf0 == 0xa0 {
+                        let hi = opcode & 0xf0;
+                        let lo = opcode & 0xf;
+                        let high_pass = hi == 0xa0;
+                        let low_pass =
+                            lo == 0x0c && (hi == 0x80 || hi == 0x20 || hi == 0xe0 || hi == 0xc0);
+                        if high_pass || low_pass {
                             line.push_str(&format!(
                                 "${:04X},Y @ {:04X} = {:02X}",
                                 value, total, dereferenced
                             ));
                             len = 19;
                         } else {
-                            if opcode & 0x0f == 0x0c
-                                && (opcode & 0xf0 == 0x80
-                                    || opcode & 0xf0 == 0x20
-                                    || opcode & 0xf0 == 0xe0
-                                    || opcode & 0xf0 == 0xc0)
-                            {
-                                line.push_str(&format!(
-                                    "${:04X},Y @ {:04X} = {:02X}",
-                                    value, total, dereferenced
-                                ));
-                                len = 19;
-                            } else {
-                                line.push_str(&format!("${:04X},Y", value));
-                                len = 14;
-                            }
+                            line.push_str(&format!("${:04X},Y", value));
+                            len = 14;
                         }
                     }
                     Alu => {
@@ -277,7 +269,7 @@ impl NesPeripheral for Spy {
         let cpu_cycle = nes.cpu.get_cycles();
         line.push_str(&format!("CYC:{}", cpu_cycle));
 
-        let stack = nes.dump_stack();
+        let _stack = nes.dump_stack();
         // let pc = regs.get_pc();
         // print!("{:2x} ## {:?} ", next_opcode, regs);
 

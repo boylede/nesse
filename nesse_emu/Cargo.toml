@@ -2,7 +2,7 @@
 name = "nesse_emu"
 version = "0.1.0"
 authors = ["Daniel Boyle <boylede+github@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 enum_dispatch = "0.3.6"

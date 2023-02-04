@@ -32,7 +32,7 @@ impl NesCart {
         let vrom_count = header[5];
         let control_bytes: [u8; 2] = [header[6], header[7]];
         let ram_count = header[8];
-        let reserved = header[9];
+        let _reserved = header[9];
         let reserved_zeros: [u8; 6] = [
             header[10], header[11], header[12], header[13], header[14], header[15],
         ];
@@ -133,7 +133,7 @@ impl NesCart {
             prg_ram,
         })
     }
-    pub fn simple(start_addrss: u16, rom: &[u8]) -> NesCart {
+    pub fn simple(_start_addrss: u16, _rom: &[u8]) -> NesCart {
         unimplemented!()
     }
 }

@@ -93,7 +93,7 @@ pub fn tsx(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 /// transfer x to stackpointer
 pub fn txs(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.cpu.get_x();
-    nes.cpu.set_sp( value);
+    nes.cpu.set_sp(value);
     cycles
 }
 
@@ -262,7 +262,7 @@ pub fn lsr(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value >> 1;
+        value >>= 1;
         nes.cpu.set_flags_from(value);
         nes.cpu.set_a(value);
     } else {
@@ -274,7 +274,7 @@ pub fn lsr(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value >> 1;
+        value >>= value;
         nes.cpu.set_flags_from(value);
         nes.set(address, value);
     }
@@ -321,7 +321,7 @@ pub fn asl(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value << 1;
+        value <<= 1;
         nes.cpu.set_flags_from(value);
         nes.cpu.set_a(value);
     } else {
@@ -333,7 +333,7 @@ pub fn asl(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value << 1;
+        value <<= 1;
         nes.cpu.set_flags_from(value);
         nes.set(address, value);
     }
@@ -350,7 +350,7 @@ pub fn ror(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value >> 1;
+        value >>= 1;
         value |= carry;
         nes.cpu.set_flags_from(value);
         nes.cpu.set_a(value);
@@ -364,7 +364,7 @@ pub fn ror(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value >> 1;
+        value >>= 1;
         value |= carry;
         nes.cpu.set_flags_from(value);
         nes.set(address, value);
@@ -382,7 +382,7 @@ pub fn rol(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value << 1;
+        value <<= 1;
         value |= carry;
         nes.cpu.set_flags_from(value);
         nes.cpu.set_a(value);
@@ -396,7 +396,7 @@ pub fn rol(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value << 1;
+        value <<= 1;
         value |= carry;
         nes.cpu.set_flags_from(value);
         nes.set(address, value);
@@ -487,13 +487,12 @@ pub fn rts(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         nes.cpu.running = false;
         cycles
     }
-    
 }
 
 pub fn beq(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let offset = nes.get(nes.cpu.registers.pc) as u16;
     nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
-    if nes.cpu.registers.status_zero() == true {
+    if nes.cpu.registers.status_zero() {
         let pc = nes.cpu.registers.pc.wrapping_add(offset);
         nes.cpu.registers.pc = pc;
     }
@@ -501,7 +500,7 @@ pub fn beq(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 }
 
 pub fn bne(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    if nes.cpu.registers.status_zero() == false {
+    if !nes.cpu.registers.status_zero() {
         let offset = nes.get(nes.cpu.registers.pc) as i8;
         let new_pc = nes.cpu.registers.pc
         .wrapping_add(1) // add one to advance PC past the above read
@@ -517,7 +516,7 @@ pub fn bne(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 pub fn bpl(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let offset = nes.get(nes.cpu.registers.pc) as i8;
     nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
-    if nes.cpu.registers.status_negative() == false {
+    if !nes.cpu.registers.status_negative() {
         let mut pc = nes.cpu.registers.pc as i32;
         pc = (pc + offset as i32) & 0xffff;
         nes.cpu.registers.pc = pc as u16;
@@ -526,7 +525,7 @@ pub fn bpl(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 }
 
 pub fn bcs(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    if nes.cpu.registers.status_carry() == true {
+    if nes.cpu.registers.status_carry() {
         let offset = nes.get(nes.cpu.registers.pc) as i8;
         let mut pc = nes.cpu.registers.pc.wrapping_add(1) as i32; // increment......
         pc = (pc + (offset as i32)) & 0xffff;
@@ -540,7 +539,7 @@ pub fn bcs(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 pub fn bcc(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let offset = nes.get(nes.cpu.registers.pc) as i8;
     nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
-    if nes.cpu.registers.status_carry() == false {
+    if !nes.cpu.registers.status_carry() {
         let mut pc = nes.cpu.registers.pc as i32;
         pc = (pc + offset as i32) & 0xffff;
         nes.cpu.registers.pc = pc as u16;
@@ -551,7 +550,7 @@ pub fn bcc(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 pub fn bvs(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let offset = nes.get(nes.cpu.registers.pc) as i8;
     nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
-    if nes.cpu.registers.status_overflow() == true {
+    if nes.cpu.registers.status_overflow() {
         let mut pc = nes.cpu.registers.pc as i32;
         pc = (pc + offset as i32) & 0xffff;
         nes.cpu.registers.pc = pc as u16;
@@ -562,7 +561,7 @@ pub fn bvs(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 pub fn bvc(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let offset = nes.get(nes.cpu.registers.pc) as i8;
     nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
-    if nes.cpu.registers.status_overflow() == false {
+    if !nes.cpu.registers.status_overflow() {
         let mut pc = nes.cpu.registers.pc as i32;
         pc = (pc + offset as i32) & 0xffff;
         nes.cpu.registers.pc = pc as u16;
@@ -573,7 +572,7 @@ pub fn bvc(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 pub fn bmi(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let offset = nes.get(nes.cpu.registers.pc) as i8;
     nes.cpu.registers.pc = nes.cpu.registers.pc.wrapping_add(1);
-    if nes.cpu.registers.status_negative() == true {
+    if nes.cpu.registers.status_negative() {
         let mut pc = nes.cpu.registers.pc as i32;
         pc = (pc + offset as i32) & 0xffff;
         nes.cpu.registers.pc = pc as u16;
@@ -643,7 +642,7 @@ pub fn slo(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value << 1;
+        value <<= 1;
         nes.cpu.set_a(value);
         value
     } else {
@@ -655,7 +654,7 @@ pub fn slo(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value << 1;
+        value <<= 1;
         nes.set(address, value);
         value
     };
@@ -677,7 +676,7 @@ pub fn rla(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value << 1;
+        value <<= 1;
         value |= carry;
         nes.cpu.set_a(value);
         value
@@ -691,7 +690,7 @@ pub fn rla(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value << 1;
+        value <<= 1;
         value |= carry;
         nes.set(address, value);
         value
@@ -713,7 +712,7 @@ pub fn sre(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value >> 1;
+        value >>= 1;
         nes.cpu.set_a(value);
         value
     } else {
@@ -725,7 +724,7 @@ pub fn sre(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value >> 1;
+        value >>= 1;
         nes.set(address, value);
         value
     };
@@ -748,9 +747,9 @@ pub fn rra(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value >> 1;
+        value >>= 1;
         value |= carry;
-        
+
         nes.cpu.set_a(value);
         value
     } else {
@@ -763,9 +762,9 @@ pub fn rra(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value = value >> 1;
+        value >>= 1;
         value |= carry;
-        
+
         nes.set(address, value);
         value
     };

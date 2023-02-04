@@ -1558,7 +1558,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 3u8,
     },
 ];
-pub fn placeholder(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+pub fn placeholder(_nes: &mut Nes, _addressing: u8, _cycles: u8, _bytes: u8) -> u8 {
     println!("opcode not implemented.");
     0
 }

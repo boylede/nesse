@@ -44,9 +44,7 @@ pub struct RunTime(Instant);
 
 impl RunTime {
     fn new() -> Self {
-        RunTime (
-            Instant::now(),
-        )
+        RunTime(Instant::now())
     }
 }
 

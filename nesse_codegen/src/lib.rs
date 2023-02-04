@@ -135,7 +135,7 @@ pub fn generate_opcode_name_list(known_opcodes: &[NesOpcode]) -> TokenStream {
     let name_list: TokenStream = opcodes.into_iter().map(|name| quote!(#name,)).collect();
     let tokens = quote! {
         //! generated in nesse_codegen, in generate_opcode_name_list, for debugging purposes
-        pub const opcode_names: &[(u8, &str);256] = &[ #name_list ];
+        pub const OPCODE_NAMES: &[(u8, &str);256] = &[ #name_list ];
     };
     tokens
 }
