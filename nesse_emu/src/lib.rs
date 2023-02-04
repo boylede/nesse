@@ -11,6 +11,7 @@ mod opcodes;
 pub mod peripherals;
 pub mod cartridge;
 pub mod cpu;
+pub mod ppu;
 
 pub use opcodes::opcode_debug::opcode_names;
 
@@ -18,6 +19,7 @@ pub mod prelude {
     // todo: select useful items to include in prelude
     pub use crate::*;
     pub use crate::cartridge::NesCart;
+    pub use crate::ppu::Nes2c02;
 }
 
 pub use opcodes::jumptable::OPCODE_JUMPTABLE;
@@ -585,83 +587,6 @@ impl NesRegisters {
     }
     pub fn set_p(&mut self, value: u8) {
         self.p = value;
-    }
-}
-
-/// nes ppu instance
-pub struct Nes2c02 {
-    controller: u8,
-    mask: u8,
-    status: u8,
-    oam_address: u8,
-    oam_data: u8,
-    scroll: u8,
-    address: u8,
-    data: u8,
-    oam_dma: u8,
-    // 0, 1, 2, or 3 to indicate syncronization between cpu and ppu clocks
-    timing: u8,
-    clock_counter: u8,
-    frame_clock: u16,
-    pallete_table: [u8; 32],
-    vram: [u8; 2048],
-    oam: [u8; 256],
-}
-
-impl Nes2c02 {
-    pub fn tick(&mut self, cart: &mut Option<NesCart>) {
-        // tick
-    }
-}
-impl AddressableMemory for Nes2c02 {
-    fn bounds(&self) -> (u16, u16) {
-        unimplemented!()
-    }
-    fn set(&mut self, address: u16, value: u8) {
-        if address < 0x2000 {
-            // nes base ram
-        } else if address < 0x4020 {
-            // other hardware
-            println!("837: wanted to write {:02X} to address {:04X}", value, address);
-            unimplemented!()
-        } else {
-            // other addresses handled by cartridge
-            unimplemented!()
-        }
-    }
-    fn get(&self, address: u16) -> u8 {
-        if address < 0x2000 {
-            unimplemented!()
-        } else if address < 0x4020 {
-            // other hardware
-            println!("849: wanted to read address {:04X}", address);
-            0
-        } else {
-            // other addresses handled by cartridge
-            unimplemented!()
-        }
-    }
-}
-
-impl Default for Nes2c02 {
-    fn default() -> Nes2c02 {
-        Nes2c02 {
-            controller: 0u8,
-            mask: 0u8,
-            status: 0u8,
-            oam_address: 0u8,
-            oam_data: 0u8,
-            scroll: 0u8,
-            address: 0u8,
-            data: 0u8,
-            oam_dma: 0u8,
-            timing: 0u8,
-            clock_counter: 0u8,
-            frame_clock: 0u16,
-            pallete_table: [0u8; 32],
-            vram: [0u8; 2048],
-            oam: [0u8; 256],
-        }
     }
 }
 
