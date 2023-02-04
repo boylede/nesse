@@ -1,8 +1,10 @@
-
 use super::*;
 use nesse_common::AddressingMode;
 
-fn translate_address<N: AddressableMemory + RegisterAccess>(snap: &mut N, mode: AddressingMode) -> u16 {
+fn translate_address<N: AddressableMemory + RegisterAccess>(
+    snap: &mut N,
+    mode: AddressingMode,
+) -> u16 {
     use AddressingMode::*;
     match mode {
         Implicit => {
@@ -86,9 +88,12 @@ pub fn ldx(snap: &mut Snapshot, mode: AddressingMode, cycle: u64) -> Delta {
         ZeroPageY => 4,
         Absolute => 4,
         AbsoluteY => 4, // todo: how to determine if page crossed?
-        _ => 0, // should not be reached
+        _ => 0,         // should not be reached
     };
-    Delta::new(cycle.wrapping_add(cycles), DeltaEvent::write_x(old_value, old_flags))
+    Delta::new(
+        cycle.wrapping_add(cycles),
+        DeltaEvent::write_x(old_value, old_flags),
+    )
 }
 
 pub fn lda(snap: &mut Snapshot, mode: AddressingMode, cycle: u64) -> Delta {
@@ -110,7 +115,10 @@ pub fn lda(snap: &mut Snapshot, mode: AddressingMode, cycle: u64) -> Delta {
         IndirectIndexed => 5,
         _ => 0, // should not be reached
     };
-    Delta::new(cycle.wrapping_add(cycles), DeltaEvent::write_a(old_value, old_flags))
+    Delta::new(
+        cycle.wrapping_add(cycles),
+        DeltaEvent::write_a(old_value, old_flags),
+    )
 }
 
 pub fn ldy(snap: &mut Snapshot, mode: AddressingMode, cycle: u64) -> Delta {
@@ -127,16 +135,19 @@ pub fn ldy(snap: &mut Snapshot, mode: AddressingMode, cycle: u64) -> Delta {
         ZeroPageX => 4,
         Absolute => 4,
         AbsoluteX => 4, // todo: page crossing
-        _ => 0, // should not be reached
+        _ => 0,         // should not be reached
     };
-    Delta::new(cycle.wrapping_add(cycles), DeltaEvent::write_y(old_value, old_flags))
+    Delta::new(
+        cycle.wrapping_add(cycles),
+        DeltaEvent::write_y(old_value, old_flags),
+    )
 }
 
 pub fn sta(snap: &mut Snapshot, mode: AddressingMode, cycle: u64) -> Delta {
     let address = translate_address(snap, mode);
     let old_flags = snap.get_p();
     let old_value = snap.get(address);
-    snap.set(address,snap.get_a());
+    snap.set(address, snap.get_a());
     use AddressingMode::*;
     let cycles = match mode {
         ZeroPage => 3,
@@ -148,13 +159,16 @@ pub fn sta(snap: &mut Snapshot, mode: AddressingMode, cycle: u64) -> Delta {
         IndirectIndexed => 6,
         _ => 0, // should not be reached
     };
-    Delta::new(cycle.wrapping_add(cycles), DeltaEvent::write_mem(address, old_value, old_flags))
+    Delta::new(
+        cycle.wrapping_add(cycles),
+        DeltaEvent::write_mem(address, old_value, old_flags),
+    )
 }
 pub fn stx(snap: &mut Snapshot, mode: AddressingMode, cycle: u64) -> Delta {
     let address = translate_address(snap, mode);
     let old_flags = snap.get_p();
     let old_value = snap.get(address);
-    snap.set(address,snap.get_x());
+    snap.set(address, snap.get_x());
     use AddressingMode::*;
     let cycles = match mode {
         ZeroPage => 3,
@@ -162,13 +176,16 @@ pub fn stx(snap: &mut Snapshot, mode: AddressingMode, cycle: u64) -> Delta {
         Absolute => 4,
         _ => 0, // should not be reached
     };
-    Delta::new(cycle.wrapping_add(cycles), DeltaEvent::write_mem(address, old_value, old_flags))
+    Delta::new(
+        cycle.wrapping_add(cycles),
+        DeltaEvent::write_mem(address, old_value, old_flags),
+    )
 }
 pub fn sty(snap: &mut Snapshot, mode: AddressingMode, cycle: u64) -> Delta {
     let address = translate_address(snap, mode);
     let old_flags = snap.get_p();
     let old_value = snap.get(address);
-    snap.set(address,snap.get_y());
+    snap.set(address, snap.get_y());
     use AddressingMode::*;
     let cycles = match mode {
         ZeroPage => 3,
@@ -176,5 +193,8 @@ pub fn sty(snap: &mut Snapshot, mode: AddressingMode, cycle: u64) -> Delta {
         Absolute => 4,
         _ => 0, // should not be reached
     };
-    Delta::new(cycle.wrapping_add(cycles), DeltaEvent::write_mem(address, old_value, old_flags))
+    Delta::new(
+        cycle.wrapping_add(cycles),
+        DeltaEvent::write_mem(address, old_value, old_flags),
+    )
 }
