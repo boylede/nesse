@@ -6,7 +6,7 @@ const HEADER: &[u8] = &[
     0x4E, 0x45, 0x53, 0x1A, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
 const PRG_ROM_SIZE : usize = 2 * 16 * 1024;
-const START_LOCATION: usize = 0x600;
+const OFFSET: usize = 0x600;
 const CODE: &[u8] = &[
     0x20, 0x06, 0x86, 0x20, 0x38, 0x86, 0x20, 0x0d, 0x86, 0x20, 0x2a, 0x86, 0x60, 0xa9, 0x02, 0x85,
     0x02, 0xa9, 0x06, 0x85, 0x03, 0xa9, 0x11, 0x85, 0x10, 0xa9, 0x10, 0x85, 0x12, 0xa9, 0x0f, 0x85,
@@ -35,11 +35,10 @@ fn main() -> Result<(), Error> {
     let file_name = "sneky.nes";
     let mut buffer = File::create(file_name).unwrap();
     buffer.write_all(HEADER)?;
-    let remaining = START_LOCATION - HEADER.len();
-    let zeros = vec![0u8; remaining];
+    let zeros = vec![0u8; OFFSET];
     buffer.write_all(&zeros)?;
     buffer.write_all(CODE)?;
-    let padding_needed = PRG_ROM_SIZE - CODE.len() - remaining;
+    let padding_needed = PRG_ROM_SIZE - CODE.len() - OFFSET - 4;
     let padding = vec![0u8; padding_needed];
     buffer.write_all(&padding)?;
     buffer.write_all(INITIAL_PC)?;
