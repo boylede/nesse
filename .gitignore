@@ -3,4 +3,5 @@ out.txt
 *.html
 *.nes
 *.s
-/generated/*
+/generated
+/ignored
