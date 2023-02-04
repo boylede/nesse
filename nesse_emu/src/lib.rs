@@ -7,6 +7,7 @@ mod test;
 
 #[cfg(feature = "delta")]
 mod emulator_state;
+
 mod opcodes;
 pub mod peripherals;
 pub mod cartridge;
@@ -18,6 +19,7 @@ pub use opcodes::opcode_debug::opcode_names;
 pub mod prelude {
     // todo: select useful items to include in prelude
     pub use crate::*;
+    pub use crate::peripherals::NesPeripheral;
     pub use crate::cartridge::NesCart;
     pub use crate::cpu::{RegisterAccess, NesRegisters};
     pub use crate::ppu::Nes2c02;
@@ -25,7 +27,12 @@ pub mod prelude {
 
 pub use opcodes::jumptable::OPCODE_JUMPTABLE;
 
+use peripherals::NesPeripheral;
+use crate::cartridge::NesCart;
+use crate::cpu::{RegisterAccess, NesRegisters};
 use crate::cpu::Nes2a03;
+use crate::ppu::Nes2c02;
+
 // the value loaded into pc is stored in this location
 const INITIAL_PC_LOCATION: u16 = 0xfffc;
 // A value added to the SP on every stack operation
@@ -38,14 +45,14 @@ const STATUS_INITIAL: u8 = 0b00100100;
 /// an instance of an NES machine
 #[derive(Default)]
 pub struct Nes<'a> {
-    cpu: Nes2a03,
-    ppu: Nes2c02,
-    ram: NesRam,
-    apu: Nes2a03Audio,
-    cartridge: Option<NesCart>,
-    gamepads: [Option<NesGamepad>; 8],
+    pub cpu: Nes2a03,
+    pub ppu: Nes2c02,
+    pub ram: NesRam,
+    pub apu: Nes2a03Audio,
+    pub cartridge: Option<NesCart>,
+    pub gamepads: [Option<NesGamepad>; 8],
     // todo: switch to enum_dispatch
-    peripherals: Option<Vec<&'a mut NesPeripheral>>,
+    pub peripherals: Option<Vec<&'a mut dyn NesPeripheral>>,
 }
 
 #[test]
@@ -305,39 +312,31 @@ impl<'a> Nes<'a> {
         let hi = self.stack_pop() as u16;
         (hi << 8) | lo
     }
-    /// steps into one instruction. returns the number of cycles consumed
-    pub fn step(&mut self) -> u64 {
-        // println!("stepping");
-        if let Some(mut peripherals) = self.peripherals.take() {
-            for p in peripherals.iter_mut() {
-                p.tick(self);
+    /// steps into one instruction.
+    pub fn step(&mut self) {
+        if self.cpu.next_tick <= self.cpu.cycles {
+            if let Some(mut peripherals) = self.peripherals.take() {
+                for p in peripherals.iter_mut() {
+                    p.tick(self);
+                }
+                self.peripherals.replace(peripherals);
             }
-            self.peripherals.replace(peripherals);
+            // self.cpu.cycles += 1;
+            let opcode = self.peek_pc();
+            self.cpu.registers.pc += 1;
+            // let mut cycles = 0;
+            let instruction = unsafe {
+                // SAFETY: this is safe because we generate the jumptable
+                // with 256 entries, which covers all possible u8 indexes
+                OPCODE_JUMPTABLE.get_unchecked(opcode as usize)
+            };
+            let cycles_spent = instruction.run(self);
+            self.cpu.next_tick = self.cpu.cycles + cycles_spent as u64;
+        } else {
+            self.cpu.cycles += 1;
+            let cycles_remaining: u64 = self.cpu.next_tick - self.cpu.cycles;
         }
-        let opcode = self.peek_pc();
-        self.cpu.registers.pc += 1;
-        // let mut cycles = 0;
-        let instruction = unsafe {
-            // SAFETY: this is safe because we generate the jumptable
-            // with 256 entries, which covers all possible u8 indexes
-            OPCODE_JUMPTABLE.get_unchecked(opcode as usize)
-        };
-        instruction.run(self);
-        // todo: with the way we're doing this we can remove the cycles
-        // from the instruction fn signature argument list
-        // and not have that function return any values
-        self.cpu.cycles += instruction.cycles as u64;
-        instruction.cycles as u64
-    }
-    pub fn run_until_nop(&mut self) -> u64 {
-        let mut last = self.step();
-        let mut total = last;
-        self.cpu.running = true;
-        while self.cpu.running {
-            last = self.step();
-            total += last;
-        }
-        total
+        
     }
     pub fn display_registers(&self) -> String {
         format!("{:?}", self.cpu.registers)
