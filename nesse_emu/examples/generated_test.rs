@@ -9,10 +9,22 @@ use sdl2::{
     EventPump, Sdl, VideoSubsystem,
 };
 
-const SNAKE_ROM: &[u8] = include_bytes!("snake.nes");
+use std::io::Read;
 
 fn main() {
-    let snake_cartridge = NesCart::from_slice(&SNAKE_ROM).expect("constant rom failed to load");
+    let generated_file_name = std::env::args().skip(1).next().unwrap();
+    let mut buffer: Vec<u8> = Vec::new();
+    match std::fs::File::open(&generated_file_name)
+        .unwrap()
+        .read_to_end(&mut buffer)
+    {
+        Ok(_) => (),
+        Err(e) => {
+            println!("couldnt open file by name: {}", generated_file_name);
+            panic!("File open error");
+        }
+    }
+    let generated_cartridge = NesCart::from_slice(&buffer).unwrap();
     let context = sdl2::init().unwrap();
     let video_subsystem = context.video().unwrap();
     let window = video_subsystem
@@ -38,7 +50,7 @@ fn main() {
         .with_peripheral(&mut random)
         .with_peripheral(&mut input)
         .with_peripheral(&mut screen);
-    nes.insert_cartridge(snake_cartridge);
+    nes.insert_cartridge(generated_cartridge);
     nes.init();
 
     nes.master_clock_drive();

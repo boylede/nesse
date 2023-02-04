@@ -47,7 +47,7 @@ fn test_0xaa_tax_move_a_to_x() {
 fn test_5_ops_working_together() {
     let mut nes = Nes::default();
     nes.inject_operation("a9 c0 aa e8 00");
-    nes.run_until_nop();
+    nes.master_clock_drive();
     let regs = nes.dump_registers();
     let expected = NesRegisters::default()
         .with_x(0xc0 + 1)
@@ -63,7 +63,7 @@ fn test_inx_overflow() {
     let mut nes = Nes::default();
     nes.inject_registers(NesRegisters::default().with_x(0xff));
     nes.inject_operation("e8 e8 00");
-    nes.run_until_nop();
+    nes.master_clock_drive();
     let regs = nes.dump_registers();
     let expected = NesRegisters::default()
         .with_x(0x1)

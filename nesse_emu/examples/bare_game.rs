@@ -10,7 +10,7 @@ use sdl2::{
     EventPump, Sdl, VideoSubsystem,
 };
 
-use std::{time};
+use std::time;
 
 /// list of labels within the game code,
 /// for debugging purposes
@@ -234,7 +234,7 @@ fn main() {
         .with_peripheral(&mut random)
         .with_peripheral(&mut input)
         .with_peripheral(&mut screen)
-        // .with_peripheral(&mut timer)
+        .with_peripheral(&mut timer)
         .with_peripheral(&mut rate)
         // .with_peripheral(Box::new(PCPrinter))
         .with_peripheral(&mut spy)
@@ -242,7 +242,7 @@ fn main() {
     nes.init();
     nes.set_pc(0x600);
 
-    nes.run_until_nop();
+    nes.master_clock_drive();
     nes.cleanup();
     // loop{}
 }
@@ -270,17 +270,16 @@ impl FPSCounter {
 }
 
 impl NesPeripheral for FPSCounter {
-    fn init(&mut self, nes: &mut Nes) {
+    fn init(&mut self, _nes: &mut Nes) {
         self.last_time = time::Instant::now();
     }
-    fn tick(&mut self, nes: &mut Nes) {
+    fn on_vblank(&mut self, _nes: &mut Nes) {
         let current = time::Instant::now();
         let elapsed = current - self.last_time;
-        println!("{:?}", elapsed);
+        println!("frame time: {:?}", elapsed);
         self.last_time = current;
     }
 }
-
 
 /// inserts a random number into the game every tick at the given address
 pub struct RandomNumberGenerator(u16);
@@ -314,28 +313,28 @@ impl NesPeripheral for KeyboardInput {
                     keycode: Some(Keycode::W),
                     ..
                 } => {
-                    println!("pressed w, writing {} to {}", 0x77, self.0);
+                    // println!("pressed w, writing {} to {}", 0x77, self.0);
                     nes.inject_memory_value(self.0, 0x77);
                 }
                 Event::KeyDown {
                     keycode: Some(Keycode::S),
                     ..
                 } => {
-                    println!("pressed s, writing {} to {}", 0x73, self.0);
+                    // println!("pressed s, writing {} to {}", 0x73, self.0);
                     nes.inject_memory_value(self.0, 0x73);
                 }
                 Event::KeyDown {
                     keycode: Some(Keycode::A),
                     ..
                 } => {
-                    println!("pressed a, writing {} to {}", 0x61, self.0);
+                    // println!("pressed a, writing {} to {}", 0x61, self.0);
                     nes.inject_memory_value(self.0, 0x61);
                 }
                 Event::KeyDown {
                     keycode: Some(Keycode::D),
                     ..
                 } => {
-                    println!("pressed d, writing {} to {}", 0x64, self.0);
+                    // println!("pressed d, writing {} to {}", 0x64, self.0);
                     nes.inject_memory_value(self.0, 0x64);
                 }
                 _ => {
@@ -432,7 +431,7 @@ impl<'a> NesPeripheral for SimpleScreen<'a> {
 fn memory_changed(nes: &Nes, address: u16, size: u16, old: &[u8]) -> bool {
     for i in 0..size {
         if nes.extract_memory(i + address) != old[i as usize] {
-            println!("screen updated");
+            // println!("screen updated");
             return true;
         }
     }
