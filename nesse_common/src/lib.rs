@@ -69,7 +69,7 @@ pub enum AddressingMode {
 
 impl AddressingMode {
     /// decode the syntax found on obelisk.me.uk/6502
-    pub fn from_str(str: &str) -> AddressingMode {
+    pub fn from_reference_material(str: &str) -> AddressingMode {
         use AddressingMode::*;
         let st = str.to_string();
         let stripped: String = st.split_whitespace().collect();
@@ -91,7 +91,7 @@ impl AddressingMode {
         }
     }
     /// decode the syntax found on the nesdev wiki
-    pub fn from_str_short_version(str: &str) -> AddressingMode {
+    pub fn from_reference_short_version(str: &str) -> AddressingMode {
         let string: String = str.split_ascii_whitespace().collect();
         use AddressingMode::*;
         match string.as_str() {
@@ -147,8 +147,9 @@ impl AddressingMode {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum StatusOption {
+    #[default]
     Conditional,
     NotAffected,
 }
@@ -168,7 +169,7 @@ impl CyclesCost {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct StatusFlags {
     pub carry: StatusOption,
     pub zero: StatusOption,
@@ -181,15 +182,6 @@ pub struct StatusFlags {
 
 impl StatusFlags {
     pub fn new() -> StatusFlags {
-        use StatusOption::*;
-        StatusFlags {
-            carry: Conditional,
-            zero: Conditional,
-            interupt_disable: Conditional,
-            decimal: Conditional,
-            break_command: Conditional,
-            overflow: Conditional,
-            negative: Conditional,
-        }
+        Default::default()
     }
 }

@@ -36,7 +36,7 @@ pub fn generate_opcode_list() -> Vec<NesOpcode> {
             // println!("{}\t------------", name);
             let (addressing_string, rest) = rest.rsplit_once('(').unwrap();
             // println!("<{}>", addressing_string);
-            let address_mode = AddressingMode::from_str_short_version(addressing_string);
+            let address_mode = AddressingMode::from_reference_short_version(addressing_string);
             let (variants, cycle_str) = rest.split_once(';').unwrap();
             // println!("FACEDELIMETER");
             let cycles = cycle_str
@@ -305,7 +305,7 @@ fn read_opcodes(paragraph: Node, metas: NesMetaOpcode) -> Vec<NesOpcode> {
             // println!("opcode row: {:?}", row);
             let meta = metas.clone();
             let mut columns = row.find(Name("td"));
-            let addressing = AddressingMode::from_str(
+            let addressing = AddressingMode::from_reference_material(
                 columns
                     .next()
                     .unwrap()

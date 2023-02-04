@@ -2,6 +2,6 @@
 name = "nesse_common"
 version = "0.1.0"
 authors = ["Daniel Boyle <boylede+github@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
