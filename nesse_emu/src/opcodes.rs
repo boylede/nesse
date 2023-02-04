@@ -1,6 +1,5 @@
-// D659 is first failure
 
-use crate::{AddressableMemory, Nes};
+use crate::{AddressableMemory, Nes, RegisterAccess};
 
 // generated in nesse_codegen:
 pub mod jumptable;
@@ -10,44 +9,43 @@ pub mod opcode_debug;
 pub fn ldx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address);
-    nes.cpu.registers.x = value;
-    nes.cpu.registers.set_flags(value);
+    nes.cpu.set_x(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 pub fn lda(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address);
-    nes.cpu.registers.a = value;
-    nes.cpu.registers.set_flags(value);
+    nes.cpu.set_a(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 pub fn ldy(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address);
-    nes.cpu.registers.y = value;
-    nes.cpu.registers.set_flags(value);
+    nes.cpu.set_y(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 pub fn sta(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    nes.set(address, nes.cpu.registers.a);
-
+    nes.set(address, nes.cpu.get_a());
     cycles
 }
 
 pub fn stx(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    nes.set(address, nes.cpu.registers.x);
+    nes.set(address, nes.cpu.get_x());
 
     cycles
 }
 
 pub fn sty(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    nes.set(address, nes.cpu.registers.y);
+    nes.set(address, nes.cpu.get_y());
 
     cycles
 }
@@ -56,7 +54,7 @@ pub fn sty(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 
 /// push p to stack
 pub fn php(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.cpu.registers.get_status_stack();
+    let value = nes.cpu.get_status_stack();
     nes.stack_push(value);
     cycles
 }
@@ -64,116 +62,116 @@ pub fn php(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 /// pull p from stack
 pub fn plp(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.stack_pop();
-    nes.cpu.registers.set_status_stack(value);
+    nes.cpu.set_status_stack(value);
     cycles
 }
 
 /// pull a from stack
 pub fn pla(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = nes.stack_pop();
-    nes.cpu.registers.set_flags(value);
-    nes.cpu.registers.set_a(value);
+    nes.cpu.set_flags_from(value);
+    nes.cpu.set_a(value);
     cycles
 }
 
 /// push a to stack
 pub fn pha(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.cpu.registers.a;
+    let value = nes.cpu.get_a();
     nes.stack_push(value);
     cycles
 }
 
 /// transfer stackpointer to x
 pub fn tsx(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.cpu.registers.sp;
-    nes.cpu.registers.x = value;
-    nes.cpu.registers.set_flags(value);
+    let value = nes.cpu.get_sp();
+    nes.cpu.set_x(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 /// transfer x to stackpointer
 pub fn txs(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.cpu.registers.x;
-    nes.cpu.registers.sp = value;
+    let value = nes.cpu.get_x();
+    nes.cpu.set_sp( value);
     cycles
 }
 
 // registers-only family -------------------------------------------------
 pub fn tax(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.cpu.registers.a;
-    nes.cpu.registers.x = value;
-    nes.cpu.registers.set_flags(value);
+    let value = nes.cpu.get_a();
+    nes.cpu.set_x(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 pub fn txa(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.cpu.registers.x;
-    nes.cpu.registers.a = value;
-    nes.cpu.registers.set_flags(value);
+    let value = nes.cpu.get_x();
+    nes.cpu.set_a(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 pub fn tay(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.cpu.registers.a;
-    nes.cpu.registers.y = value;
-    nes.cpu.registers.set_flags(value);
+    let value = nes.cpu.get_a();
+    nes.cpu.set_y(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 pub fn tya(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.cpu.registers.y;
-    nes.cpu.registers.a = value;
-    nes.cpu.registers.set_flags(value);
+    let value = nes.cpu.get_y();
+    nes.cpu.set_a(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 pub fn inx(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.cpu.registers.x.wrapping_add(1);
-    nes.cpu.registers.x = value;
-    nes.cpu.registers.set_flags(value);
+    let value = nes.cpu.get_x().wrapping_add(1);
+    nes.cpu.set_x(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 pub fn iny(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.cpu.registers.y.wrapping_add(1);
-    nes.cpu.registers.y = value;
-    nes.cpu.registers.set_flags(value);
+    let value = nes.cpu.get_y().wrapping_add(1);
+    nes.cpu.set_y(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 pub fn dex(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.cpu.registers.x.wrapping_sub(1);
-    nes.cpu.registers.x = value;
-    nes.cpu.registers.set_flags(value);
+    let value = nes.cpu.get_x().wrapping_sub(1);
+    nes.cpu.set_x(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 pub fn dey(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    let value = nes.cpu.registers.y.wrapping_sub(1);
-    nes.cpu.registers.y = value;
-    nes.cpu.registers.set_flags(value);
+    let value = nes.cpu.get_y().wrapping_sub(1);
+    nes.cpu.set_y(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 pub fn clc(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    nes.cpu.registers.clear_carry();
+    nes.cpu.clear_carry();
     cycles
 }
 
 pub fn sec(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    nes.cpu.registers.set_carry();
+    nes.cpu.set_carry();
     cycles
 }
 
 pub fn sed(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    nes.cpu.registers.set_decimal();
+    nes.cpu.set_decimal();
     cycles
 }
 
 pub fn cld(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    nes.cpu.registers.clear_decimal();
+    nes.cpu.clear_decimal();
     cycles
 }
 
 pub fn clv(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
-    nes.cpu.registers.clear_overflow();
+    nes.cpu.clear_overflow();
     cycles
 }
 
@@ -204,7 +202,7 @@ pub fn rti(nes: &mut Nes, _addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     // add one back to the value we got since we subtracted one in jsr
     // let pc = value.wrapping_add(1); // todo: why dont we add 1 here like rts?
     nes.cpu.registers.pc = value;
-    nes.cpu.registers.set_status_stack(flags);
+    nes.cpu.set_status_stack(flags);
 
     cycles
 }
@@ -248,24 +246,24 @@ pub fn sbc(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 
 pub fn and(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    let value = nes.get(address) & nes.cpu.registers.a;
-    nes.cpu.registers.a = value;
-    nes.cpu.registers.set_flags(value);
+    let value = nes.get(address) & nes.cpu.get_a();
+    nes.cpu.set_a(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 pub fn lsr(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     // todo: this is gross, fix it fix it fix it
     if addressing == 1 {
         // operate on the accumulator
-        let mut value = nes.cpu.registers.a;
+        let mut value = nes.cpu.get_a();
         if value & 0b1 == 0b1 {
             nes.cpu.registers.set_carry();
         } else {
             nes.cpu.registers.clear_carry();
         }
         value = value >> 1;
-        nes.cpu.registers.set_flags(value);
-        nes.cpu.registers.a = value;
+        nes.cpu.set_flags_from(value);
+        nes.cpu.set_a(value);
     } else {
         // operate per addressing mode
         let address = nes.get_address_from_mode(addressing);
@@ -276,7 +274,7 @@ pub fn lsr(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
             nes.cpu.registers.clear_carry();
         }
         value = value >> 1;
-        nes.cpu.registers.set_flags(value);
+        nes.cpu.set_flags_from(value);
         nes.set(address, value);
     }
     cycles
@@ -286,45 +284,45 @@ pub fn dec(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address).wrapping_sub(1);
     nes.set(address, value);
-    nes.cpu.registers.set_flags(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 pub fn inc(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address).wrapping_add(1);
     nes.set(address, value);
-    nes.cpu.registers.set_flags(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 pub fn ora(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    let value = nes.get(address) | nes.cpu.registers.a;
-    nes.cpu.registers.a = value;
-    nes.cpu.registers.set_flags(value);
+    let value = nes.get(address) | nes.cpu.get_a();
+    nes.cpu.set_a(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 pub fn eor(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    let value = nes.get(address) ^ nes.cpu.registers.a;
-    nes.cpu.registers.a = value;
-    nes.cpu.registers.set_flags(value);
+    let value = nes.get(address) ^ nes.cpu.get_a();
+    nes.cpu.set_a(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 pub fn asl(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     if addressing == 1 {
         // operate on the accumulator
-        let mut value = nes.cpu.registers.a;
+        let mut value = nes.cpu.get_a();
         if value & 1 << 7 == 1 << 7 {
             nes.cpu.registers.set_carry();
         } else {
             nes.cpu.registers.clear_carry();
         }
         value = value << 1;
-        nes.cpu.registers.set_flags(value);
-        nes.cpu.registers.a = value;
+        nes.cpu.set_flags_from(value);
+        nes.cpu.set_a(value);
     } else {
         // operate per addressing mode
         let address = nes.get_address_from_mode(addressing);
@@ -335,7 +333,7 @@ pub fn asl(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
             nes.cpu.registers.clear_carry();
         }
         value = value << 1;
-        nes.cpu.registers.set_flags(value);
+        nes.cpu.set_flags_from(value);
         nes.set(address, value);
     }
     cycles
@@ -344,7 +342,7 @@ pub fn asl(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 pub fn ror(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     if addressing == 1 {
         // operate on the accumulator
-        let mut value = nes.cpu.registers.a;
+        let mut value = nes.cpu.get_a();
         let carry = nes.cpu.registers.get_carry() << 7;
         if value & 1 == 1 {
             nes.cpu.registers.set_carry();
@@ -353,8 +351,8 @@ pub fn ror(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         }
         value = value >> 1;
         value |= carry;
-        nes.cpu.registers.set_flags(value);
-        nes.cpu.registers.a = value;
+        nes.cpu.set_flags_from(value);
+        nes.cpu.set_a(value);
     } else {
         // operate per addressing mode
         let address = nes.get_address_from_mode(addressing);
@@ -367,7 +365,7 @@ pub fn ror(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         }
         value = value >> 1;
         value |= carry;
-        nes.cpu.registers.set_flags(value);
+        nes.cpu.set_flags_from(value);
         nes.set(address, value);
     }
     cycles
@@ -376,7 +374,7 @@ pub fn ror(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 pub fn rol(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     if addressing == 1 {
         // operate on the accumulator
-        let mut value = nes.cpu.registers.a;
+        let mut value = nes.cpu.get_a();
         let carry = nes.cpu.registers.get_carry();
         if value & 1 << 7 == 1 << 7 {
             nes.cpu.registers.set_carry();
@@ -385,8 +383,8 @@ pub fn rol(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         }
         value = value << 1;
         value |= carry;
-        nes.cpu.registers.set_flags(value);
-        nes.cpu.registers.a = value;
+        nes.cpu.set_flags_from(value);
+        nes.cpu.set_a(value);
     } else {
         // operate per addressing mode
         let address = nes.get_address_from_mode(addressing);
@@ -399,7 +397,7 @@ pub fn rol(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         }
         value = value << 1;
         value |= carry;
-        nes.cpu.registers.set_flags(value);
+        nes.cpu.set_flags_from(value);
         nes.set(address, value);
     }
     cycles
@@ -446,7 +444,7 @@ pub fn cpy(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 pub fn bit(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address);
-    let mask = nes.cpu.registers.a;
+    let mask = nes.cpu.get_a();
     let result = value & mask;
 
     nes.cpu.registers.set_overflow_from(value);
@@ -590,15 +588,15 @@ pub fn ign(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 pub fn lax(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address);
-    nes.cpu.registers.a = value;
-    nes.cpu.registers.x = value;
-    nes.cpu.registers.set_flags(value);
+    nes.cpu.set_a(value);
+    nes.cpu.set_x(value);
+    nes.cpu.set_flags_from(value);
     cycles
 }
 
 pub fn sax(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
-    let value = nes.cpu.registers.x & nes.cpu.registers.a;
+    let value = nes.cpu.registers.x & nes.cpu.get_a();
     nes.set(address, value);
     cycles
 }
@@ -608,7 +606,7 @@ pub fn dcp(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address).wrapping_sub(1);
     nes.set(address, value);
-    // nes.cpu.registers.set_flags(value);
+    // nes.cpu.set_flags_from(value);
     //// cmp
     // let address = nes.get_address_from_mode(addressing);
     // let value = nes.get(address);
@@ -627,7 +625,7 @@ pub fn isc(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let address = nes.get_address_from_mode(addressing);
     let value = nes.get(address).wrapping_add(1);
     nes.set(address, value);
-    nes.cpu.registers.set_flags(value);
+    nes.cpu.set_flags_from(value);
     // sbc
     let input = value as i8;
     add_to_a(nes, input.wrapping_neg().wrapping_sub(1) as u8);
@@ -638,14 +636,14 @@ pub fn isc(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
 pub fn slo(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     let value = if addressing == 1 {
         // operate on the accumulator
-        let mut value = nes.cpu.registers.a;
+        let mut value = nes.cpu.get_a();
         if value & 1 << 7 == 1 << 7 {
             nes.cpu.registers.set_carry();
         } else {
             nes.cpu.registers.clear_carry();
         }
         value = value << 1;
-        nes.cpu.registers.a = value;
+        nes.cpu.set_a(value);
         value
     } else {
         // operate per addressing mode
@@ -660,7 +658,7 @@ pub fn slo(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         nes.set(address, value);
         value
     };
-    let result = value | nes.cpu.registers.a;
+    let result = value | nes.cpu.get_a();
     nes.cpu.registers.a = result;
     nes.cpu.registers.set_flags(result);
     cycles
@@ -671,7 +669,7 @@ pub fn rla(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     // ROL
     let value = if addressing == 1 {
         // operate on the accumulator
-        let mut value = nes.cpu.registers.a;
+        let mut value = nes.cpu.get_a();
         let carry = nes.cpu.registers.get_carry();
         if value & 1 << 7 == 1 << 7 {
             nes.cpu.registers.set_carry();
@@ -680,7 +678,7 @@ pub fn rla(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         }
         value = value << 1;
         value |= carry;
-        nes.cpu.registers.a = value;
+        nes.cpu.set_a(value);
         value
     } else {
         // operate per addressing mode
@@ -708,14 +706,14 @@ pub fn sre(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     // lsr
     let value = if addressing == 1 {
         // operate on the accumulator
-        let mut value = nes.cpu.registers.a;
+        let mut value = nes.cpu.get_a();
         if value & 0b1 == 0b1 {
             nes.cpu.registers.set_carry();
         } else {
             nes.cpu.registers.clear_carry();
         }
         value = value >> 1;
-        nes.cpu.registers.a = value;
+        nes.cpu.set_a(value);
         value
     } else {
         // operate per addressing mode
@@ -731,7 +729,7 @@ pub fn sre(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         value
     };
     // eor
-    let result = value ^ nes.cpu.registers.a;
+    let result = value ^ nes.cpu.get_a();
     nes.cpu.registers.a = result;
     nes.cpu.registers.set_flags(result);
     cycles
@@ -742,7 +740,7 @@ pub fn rra(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
     // ror
     let value = if addressing == 1 {
         // operate on the accumulator
-        let mut value = nes.cpu.registers.a;
+        let mut value = nes.cpu.get_a();
         let carry = nes.cpu.registers.get_carry() << 7;
         if value & 1 == 1 {
             nes.cpu.registers.set_carry();
@@ -752,7 +750,7 @@ pub fn rra(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         value = value >> 1;
         value |= carry;
         
-        nes.cpu.registers.a = value;
+        nes.cpu.set_a(value);
         value
     } else {
         // operate per addressing mode
