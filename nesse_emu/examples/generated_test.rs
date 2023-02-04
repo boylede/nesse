@@ -12,7 +12,10 @@ use sdl2::{
 use std::io::Read;
 
 fn main() {
-    let generated_file_name = std::env::args().skip(1).next().unwrap();
+    let Some(generated_file_name) = std::env::args().skip(1).next() else {
+        println!("Expected file name provided as arg 1");
+        return;
+    };
     let mut buffer: Vec<u8> = Vec::new();
     match std::fs::File::open(&generated_file_name)
         .unwrap()
@@ -24,7 +27,10 @@ fn main() {
             panic!("File open error");
         }
     }
-    let generated_cartridge = NesCart::from_slice(&buffer).unwrap();
+    let Some(generated_cartridge) = NesCart::from_slice(&buffer) else {
+        println!("Failed to open cartridge");
+        return;
+    };
     let context = sdl2::init().unwrap();
     let video_subsystem = context.video().unwrap();
     let window = video_subsystem

@@ -108,7 +108,10 @@ impl NesCart {
         let prg_rom_size = rom_count as usize * 16 * 1024;
         // println!("getting {} bytes for prg_rom", prg_rom_size);
         let mut prg_rom = vec![0u8; prg_rom_size];
-        bytes.read_exact(&mut prg_rom).unwrap();
+        if bytes.read_exact(&mut prg_rom).is_err() {
+            println!("file ended early while reading program rom. expected {rom_count} roms for {prg_rom_size} bytes");
+            return None;
+        }
         // println!("retreived {} bytes for prg_rom", prg_rom.len());
         // println!("  -prg_rom = {} bytes", bytes.len());
         let chr_rom_size = vrom_count as usize * 8 * 1024;
