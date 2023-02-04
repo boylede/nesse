@@ -10,6 +10,7 @@ mod emulator_state;
 mod opcodes;
 pub mod peripherals;
 pub mod cartridge;
+pub mod cpu;
 
 pub use opcodes::opcode_debug::opcode_names;
 
@@ -21,6 +22,7 @@ pub mod prelude {
 
 pub use opcodes::jumptable::OPCODE_JUMPTABLE;
 
+use crate::cpu::Nes2a03;
 // the value loaded into pc is stored in this location
 const INITIAL_PC_LOCATION: u16 = 0xfffc;
 // A value added to the SP on every stack operation
@@ -446,32 +448,6 @@ impl<'a> RegisterAccess for Nes<'a> {
 }
 
 
-/// NES cpu instance
-#[derive(Default, Clone)]
-pub struct Nes2a03 {
-    running: bool,
-    cycles: u64,
-    clock_counter: u8,
-    registers: NesRegisters,
-}
-
-#[derive(Default, Clone, PartialEq, Eq, Debug)]
-pub struct NesRegisters {
-    /// program counter
-    pub pc: u16,
-    /// stack pointer
-    pub sp: u8,
-    /// accumulator
-    pub a: u8,
-    /// index x
-    pub x: u8,
-    /// index y
-    pub y: u8,
-    /// processor status
-    pub p: u8,
-    // debug counter for stack pushes
-    // debug_stack_depth: u16,
-}
 
 const FLAG_CARRY: u8 = 1 << 0;
 const FLAG_ZERO: u8 = 1 << 1;
