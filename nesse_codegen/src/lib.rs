@@ -1,11 +1,6 @@
-use std::fs;
-use std::fs::File;
-use std::io::{BufRead, BufReader, Cursor, Seek, SeekFrom, Write};
-use std::{fmt, ops::Add};
-
 use select::document::Document;
 use select::node::Node;
-use select::predicate::{Element, Name, Predicate, Text};
+use select::predicate::{Element, Name, Text};
 
 use nesse_common::{
     AddressingMode, CyclesCost, NesMetaOpcode, NesOpcode, StatusFlags, StatusOption,
@@ -53,20 +48,19 @@ pub fn generate_opcode_list() -> Vec<NesOpcode> {
             // println!("cycles: {}", cycles);
             // let cycles =
             let meta = NesMetaOpcode {
-                name: name.clone(),
+                name,
                 description: String::new(), // todo from one of the split lines?
                 status: StatusFlags::new(),
             };
             variants.split(',').map(move |opcode_str| {
                 let mut members = opcode_str.split_ascii_whitespace();
                 let (_dollar_sign, number) = members.next().unwrap().split_at(1);
-                let parameters: Vec<String> = members.map(|s| s.to_owned()).collect();
-                // println!("<{}: {:?}>", number, parameters);
+                let parameters_count = members.count();
                 NesOpcode {
                     meta: meta.clone(),
                     addressing: address_mode,
                     opcode: u8::from_str_radix(number, 16).unwrap(),
-                    bytes: (parameters.len() + 1) as u8,
+                    bytes: (parameters_count + 1) as u8,
                     cycles: CyclesCost::Always(cycles), // todo
                 }
             })
@@ -78,7 +72,6 @@ pub fn generate_opcode_list() -> Vec<NesOpcode> {
 }
 
 struct JumpListEntryGenerator {
-    index: u8,
     ident: Ident,
     addresssing: u8,
     cycles: u8,
@@ -108,7 +101,7 @@ impl ToTokens for OpcodeName {
     }
 }
 
-pub fn generate_opcode_name_list(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
+pub fn generate_opcode_name_list(known_opcodes: &[NesOpcode]) -> TokenStream {
     let mut opcodes = Vec::with_capacity(256);
     for opcode_number in 0i32..256 {
         if let Some(opcode) = known_opcodes
@@ -119,12 +112,10 @@ pub fn generate_opcode_name_list(known_opcodes: &Vec<NesOpcode>) -> TokenStream 
                 opcode.opcode,
                 opcode.meta.name.to_string().to_ascii_uppercase(),
             );
-            if let Some((from, to)) = RENAME_LIST
+            if let Some((_from, to)) = RENAME_LIST
                 .iter()
-                .filter(|(from, _)| opcode.meta.name.as_str() == *from)
-                .next()
+                .find(|(from, _)| opcode.meta.name.as_str() == *from)
             {
-                // println!("renaming op {} to {}", from, to);
                 entry.1 = (*to).to_owned();
             }
             opcodes.push(entry);
@@ -166,7 +157,7 @@ fn generate_opcode_stub(name: String) -> TokenStream {
         }
     }
 }
-pub fn generate_stub_opcode_implementations(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
+pub fn generate_stub_opcode_implementations(known_opcodes: &[NesOpcode]) -> TokenStream {
     let mut opcode_names: Vec<String> = known_opcodes
         .iter()
         .map(|oc| oc.meta.name.to_string().to_ascii_lowercase())
@@ -177,10 +168,7 @@ pub fn generate_stub_opcode_implementations(known_opcodes: &Vec<NesOpcode>) -> T
     //     .iter()
     //     .map(|name| Ident::new(name, Span::call_site()))
     //     .collect();
-    let stubs: TokenStream = opcode_names
-        .into_iter()
-        .map(|name| generate_opcode_stub(name))
-        .collect();
+    let stubs: TokenStream = opcode_names.into_iter().map(generate_opcode_stub).collect();
     quote! {
         //! generated in nesse_codegen, in generate_generate_stub_opcode_implementations,
         //! edited by hand afterwards
@@ -188,7 +176,7 @@ pub fn generate_stub_opcode_implementations(known_opcodes: &Vec<NesOpcode>) -> T
         #stubs
     }
 }
-pub fn generate_jumplist(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
+pub fn generate_jumplist(known_opcodes: &[NesOpcode]) -> TokenStream {
     let mut opcodes: Vec<JumpListEntryGenerator> = vec![];
     for opcode_number in 0i32..256 {
         if let Some(opcode) = known_opcodes
@@ -209,7 +197,7 @@ pub fn generate_jumplist(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
             };
             // let ident = Ident::new(&opcode.meta.name.to_ascii_lowercase(), Span::call_site());
             let jle = JumpListEntryGenerator {
-                index: opcode_number as u8,
+                // index: opcode_number as u8,
                 ident,
                 addresssing: opcode.addressing.to_u8(),
                 cycles: opcode.cycles.to_u8(),
@@ -218,7 +206,7 @@ pub fn generate_jumplist(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
             opcodes.push(jle);
         } else {
             let jle = JumpListEntryGenerator {
-                index: opcode_number as u8,
+                // index: opcode_number as u8,
                 ident: Ident::new("placeholder", Span::call_site()),
                 addresssing: 0,
                 cycles: 0,
@@ -400,8 +388,4 @@ fn is_not_affected(row: Node) -> StatusOption {
     } else {
         StatusOption::Conditional
     }
-}
-
-fn read_extra_opcode_definition() {
-    //
 }
