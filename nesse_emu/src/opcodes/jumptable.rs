@@ -1,3 +1,4 @@
+#![doc = r" generated in nesse_codegen, in generate_jumplist"]
 use crate::opcodes::*;
 use crate::Nes;
 pub type OpcodeFn = fn(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8;
@@ -33,7 +34,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 2u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -129,7 +130,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 2u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -225,7 +226,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 2u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -321,7 +322,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 2u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -417,7 +418,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 2u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -513,7 +514,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 2u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -609,7 +610,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 2u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -705,7 +706,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 2u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -855,7 +856,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 1u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -897,13 +898,13 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 2u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -951,13 +952,13 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 1u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -969,13 +970,13 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 3u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -1047,7 +1048,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 1u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -1089,7 +1090,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 2u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -1143,7 +1144,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 1u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -1281,7 +1282,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 2u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -1473,7 +1474,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 2u8,
     },
     Opcode {
-        exec: halt,
+        exec: placeholder,
         addressing: 0u8,
         cycles: 0u8,
         bytes: 1u8,
@@ -1557,3 +1558,7 @@ pub const OPCODE_JUMPTABLE: [Opcode; 256] = [
         bytes: 3u8,
     },
 ];
+pub fn placeholder(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8 {
+    println!("opcode not implemented.");
+    0
+}

@@ -143,6 +143,7 @@ pub fn generate_opcode_name_list(known_opcodes: &Vec<NesOpcode>) -> TokenStream 
     // names.dedup();
     let name_list: TokenStream = opcodes.into_iter().map(|name| quote!(#name,)).collect();
     let tokens = quote! {
+        //! generated in nesse_codegen, in generate_opcode_name_list, for debugging purposes
         pub const opcode_names: &[(u8, &str);256] = &[ #name_list ];
     };
     tokens
@@ -181,6 +182,8 @@ pub fn generate_stub_opcode_implementations(known_opcodes: &Vec<NesOpcode>) -> T
         .map(|name| generate_opcode_stub(name))
         .collect();
     quote! {
+        //! generated in nesse_codegen, in generate_generate_stub_opcode_implementations,
+        //! edited by hand afterwards
         use crate::{Nes, AddressableMemory};
         #stubs
     }
@@ -226,6 +229,7 @@ pub fn generate_jumplist(known_opcodes: &Vec<NesOpcode>) -> TokenStream {
     }
     // we want to output code that looks like this:
     let template: TokenStream = quote! {
+            //! generated in nesse_codegen, in generate_jumplist
             use crate::Nes;
             use crate::opcodes::*;
             pub type OpcodeFn = fn(nes: &mut Nes, addressing: u8, cycles: u8, bytes: u8) -> u8;

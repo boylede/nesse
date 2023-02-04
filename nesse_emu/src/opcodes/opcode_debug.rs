@@ -1,3 +1,4 @@
+#![doc = r" generated in nesse_codegen, in generate_opcode_name_list, for debugging purposes"]
 pub const opcode_names: &[(u8, &str); 256] = &[
     (0u8, "BRK"),
     (1u8, "ORA"),
