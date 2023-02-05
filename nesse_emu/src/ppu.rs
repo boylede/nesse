@@ -35,45 +35,59 @@ impl Nes2c02 {
         // tick
     }
 }
+
+pub const PPU_ORIGIN: u16 = 0x2000;
+pub const PPU_END: u16 = 0x4020;
+
+pub const PPU_CONTROLLER: u16 = 0x2000;
+pub const PPU_MASK: u16 = 0x2001;
+pub const PPU_STATUS: u16 = 0x2002;
+pub const PPU_OAM_ADDRESS: u16 = 0x2003;
+pub const PPU_OAM_DATA: u16 = 0x2004;
+pub const PPU_SCROLL: u16 = 0x2005;
+pub const PPU_ADDRESS: u16 = 0x2006;
+pub const PPU_DATA: u16 = 0x2007;
+pub const PPU_OAM_DMA: u16 = 0x4014;
+
 impl AddressableMemory for Nes2c02 {
     fn bounds(&self) -> (u16, u16) {
         unimplemented!()
     }
     fn set(&mut self, address: u16, value: u8) {
-        if address < 0x2000 {
+        if address < PPU_CONTROLLER {
             // nes base ram
-        } else if address < 0x4020 {
+        } else if address < PPU_END {
             // other hardware
             println!(
                 "837: wanted to write {:02X} to address {:04X}",
                 value, address
             );
             match address {
-                0x2000 => {
+                PPU_CONTROLLER => {
                     // controller
                     self.controller = value;
                 }
-                0x2001 => {
+                PPU_MASK => {
                     // mask
                     self.mask = value;
                 }
-                0x2002 => {
+                PPU_STATUS => {
                     // status
                     self.status = value;
                 }
-                0x2003 => {
+                PPU_OAM_ADDRESS => {
                     // oam address
                     self.oam_address = value;
                 }
-                0x2004 => {
+                PPU_OAM_DATA => {
                     // oam data
                     self.oam_data = value;
                 }
-                0x2005 => {
+                PPU_SCROLL => {
                     // scroll
                     self.scroll = value;
                 }
-                0x2006 => {
+                PPU_ADDRESS => {
                     // address
                     match self.address {
                         AddressRegisterLatch::Unset => {
@@ -87,10 +101,10 @@ impl AddressableMemory for Nes2c02 {
                         }
                     }
                 }
-                0x2007 => {
+                PPU_DATA => {
                     // data not writable
                 }
-                0x4014 => {
+                PPU_OAM_DMA => {
                     // oam dma
                     self.oam_dma = value;
                 }
@@ -104,9 +118,9 @@ impl AddressableMemory for Nes2c02 {
         }
     }
     fn get(&self, address: u16) -> u8 {
-        if address < 0x2000 {
+        if address < PPU_ORIGIN {
             unimplemented!()
-        } else if address < 0x4020 {
+        } else if address < PPU_END {
             // other hardware
             println!("849: wanted to read address {:04X}", address);
             0
