@@ -1,7 +1,7 @@
 #![doc = r" generated in nesse_codegen, in generate_generate_stub_opcode_implementations,"]
 #![doc = r" edited by hand afterwards"]
 
-use crate::{AddressableMemory, Nes, RegisterAccess};
+use crate::{Bus, Nes, RegisterAccess};
 
 pub mod jumptable;
 pub mod opcode_debug;

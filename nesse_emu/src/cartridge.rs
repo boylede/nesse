@@ -141,7 +141,7 @@ impl NesCart {
     }
 }
 
-impl AddressableMemory for NesCart {
+impl Bus for NesCart {
     fn bounds(&self) -> (u16, u16) {
         (0x4020, 0xffff)
     }

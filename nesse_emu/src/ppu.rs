@@ -49,7 +49,7 @@ pub const PPU_ADDRESS: u16 = 0x2006;
 pub const PPU_DATA: u16 = 0x2007;
 pub const PPU_OAM_DMA: u16 = 0x4014;
 
-impl AddressableMemory for Nes2c02 {
+impl Bus for Nes2c02 {
     fn bounds(&self) -> (u16, u16) {
         unimplemented!()
     }
@@ -109,6 +109,7 @@ impl AddressableMemory for Nes2c02 {
                     self.oam_dma = value;
                 }
                 _ => {
+                    // todo: implement appropriate mirroring
                     unimplemented!()
                 }
             }

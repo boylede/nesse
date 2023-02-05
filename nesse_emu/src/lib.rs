@@ -350,7 +350,7 @@ impl<'a> Nes<'a> {
     }
 }
 
-impl<'a> AddressableMemory for Nes<'a> {
+impl<'a> Bus for Nes<'a> {
     fn bounds(&self) -> (u16, u16) {
         (0, 0xffff)
     }
@@ -392,7 +392,7 @@ impl<'a> AddressableMemory for Nes<'a> {
     }
 }
 
-pub trait AddressableMemory {
+pub trait Bus {
     fn bounds(&self) -> (u16, u16);
     fn bounds_check(&self, address: u16) -> bool {
         let bounds = self.bounds();
@@ -436,7 +436,7 @@ impl Default for NesRam {
     }
 }
 
-impl AddressableMemory for NesRam {
+impl Bus for NesRam {
     fn bounds(&self) -> (u16, u16) {
         (0, 0x2000)
     }
@@ -475,7 +475,7 @@ pub struct Nes2a03Audio {
     registers: [u8; 0x18],
 }
 
-impl AddressableMemory for Nes2a03Audio {
+impl Bus for Nes2a03Audio {
     fn bounds(&self) -> (u16, u16) {
         (0x4000, 0x401F)
     }
