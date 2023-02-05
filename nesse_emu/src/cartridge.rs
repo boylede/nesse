@@ -1,10 +1,15 @@
-use crate::prelude::*;
+use crate::{prelude::*, mapper::Mapper};
+
+/// a cartridge as described by a iNes 1.0 or 2.0 file (2.0 currently unimplemented)
 pub struct NesCart {
     pub header: NesCartHeader,
     trainer: Option<Vec<u8>>,
+    /// program memory
     prg_rom: Vec<u8>,
+    /// character memory / pattern memory
     chr_rom: Vec<u8>,
     prg_ram: Vec<u8>,
+    mapper: Box<dyn Mapper>,
 }
 
 pub struct NesCartHeader {
@@ -127,17 +132,16 @@ impl NesCart {
             Vec::with_capacity(8 * 1024 * ram_count as usize)
         };
 
-        // unimplemented!();
+        let mapper = Box::new(());
+
         Some(NesCart {
             header,
             trainer,
             prg_rom,
             chr_rom,
             prg_ram,
+            mapper,
         })
-    }
-    pub fn simple(_start_addrss: u16, _rom: &[u8]) -> NesCart {
-        unimplemented!()
     }
 }
 
@@ -146,7 +150,8 @@ impl Bus for NesCart {
         (0x4020, 0xffff)
     }
     fn set(&mut self, address: u16, value: u8) {
-        // todo: bounds checks
+        let address = self.mapper.translate(address);
+
         if address < 0x6000 {
             // special depending on cartridge generation
             unimplemented!()
@@ -162,7 +167,8 @@ impl Bus for NesCart {
             );
         }
     }
-    fn get(&self, address: u16) -> u8 {
+    fn get(&mut self, address: u16) -> u8 {
+        let address = self.mapper.translate(address);
         // todo: bounds checks
         if address < 0x6000 {
             // special depending on cartridge generation

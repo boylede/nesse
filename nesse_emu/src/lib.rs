@@ -9,6 +9,7 @@ mod emulator_state;
 
 pub mod cartridge;
 pub mod cpu;
+pub mod mapper;
 mod opcodes;
 pub mod peripherals;
 pub mod ppu;
@@ -63,11 +64,13 @@ fn nes_size() {
     // assert_eq!(mw, 4 );
     // assert_eq!(rw, 6 );
     // assert_eq!(gw, 1 );
-    assert_eq!(nes, 16);
+    assert_eq!(nes, 4592);
 }
 
 impl<'a> Nes<'a> {
     /// a single tick of the master clock
+    /// ticks the cpu every 1 ticks and ticks the cpu every 12
+    /// also increments a frame counter and calls Nes::on_frame() every 29780 cpu ticks.
     pub fn master_tick(&mut self) {
         self.ppu.clock_counter += 1;
         if self.ppu.clock_counter >= 4 {
@@ -86,12 +89,14 @@ impl<'a> Nes<'a> {
             }
         }
     }
+    /// sets the cpu to running and runs until stopped by some external force
     pub fn master_clock_drive(&mut self) {
         self.cpu.running = true;
         while self.cpu.running {
             self.master_tick();
         }
     }
+    /// calls on_vblank on every peripheral
     pub fn on_frame(&mut self) {
         if let Some(mut peripherals) = self.peripherals.take() {
             for p in peripherals.iter_mut() {
@@ -99,10 +104,6 @@ impl<'a> Nes<'a> {
             }
             self.peripherals.replace(peripherals);
         }
-    }
-    pub fn load_rom(&mut self, rom: &[u8]) {
-        NesCart::from_slice(rom);
-        unimplemented!()
     }
     pub fn init(&mut self) {
         self.cpu.registers.reset();
@@ -125,10 +126,10 @@ impl<'a> Nes<'a> {
             self.peripherals.replace(peripherals);
         }
     }
-    pub fn extract_memory(&self, address: u16) -> u8 {
+    pub fn extract_memory(&mut self, address: u16) -> u8 {
         self.get(address)
     }
-    pub fn extract_memory_region(&self, address: u16, size: u16) -> Vec<u8> {
+    pub fn extract_memory_region(&mut self, address: u16, size: u16) -> Vec<u8> {
         let mut v = Vec::with_capacity(size as usize);
         for i in 0..size {
             v.push(self.get(i + address));
@@ -172,7 +173,7 @@ impl<'a> Nes<'a> {
     pub fn inject_registers(&mut self, regs: NesRegisters) {
         self.cpu.registers = regs;
     }
-    pub fn dump_stack(&self) -> String {
+    pub fn dump_stack(&mut self) -> String {
         let sp = self.cpu.registers.sp as u16 + STACK_OFFSET;
         let mut depth = ((self.cpu.registers.sp ^ 0xff) >> 1) as u16;
         let mut stack = format! {"{}: ", depth};
@@ -318,10 +319,8 @@ impl<'a> Nes<'a> {
                 }
                 self.peripherals.replace(peripherals);
             }
-            // self.cpu.cycles += 1;
             let opcode = self.peek_pc();
             self.cpu.registers.pc += 1;
-            // let mut cycles = 0;
             let instruction = unsafe {
                 // SAFETY: this is safe because we generate the jumptable
                 // with 256 entries, which covers all possible u8 indexes
@@ -333,6 +332,7 @@ impl<'a> Nes<'a> {
             self.cpu.cycles += 1;
         }
     }
+    /// returns a string with the registers
     pub fn display_registers(&self) -> String {
         format!("{:?}", self.cpu.registers)
     }
@@ -340,6 +340,7 @@ impl<'a> Nes<'a> {
     pub fn peek_pc(&mut self) -> u8 {
         self.get(self.cpu.registers.pc)
     }
+    /// inserts the cartridge
     pub fn insert_cartridge(&mut self, cart: NesCart) {
         if self.cartridge.is_none() {
             self.cartridge = Some(cart);
@@ -371,7 +372,7 @@ impl<'a> Bus for Nes<'a> {
             }
         }
     }
-    fn get(&self, address: u16) -> u8 {
+    fn get(&mut self, address: u16) -> u8 {
         if address < 0x2000 {
             // nes base ram
             self.ram.get(address)
@@ -383,7 +384,7 @@ impl<'a> Bus for Nes<'a> {
             self.apu.get(address)
         } else {
             // other addresses handled by cartridge
-            if let Some(cart) = &self.cartridge {
+            if let Some(ref mut cart) = self.cartridge {
                 cart.get(address)
             } else {
                 0
@@ -399,20 +400,20 @@ pub trait Bus {
         address >= bounds.0 && address < bounds.1
     }
     fn set(&mut self, address: u16, value: u8);
-    fn get(&self, address: u16) -> u8;
+    fn get(&mut self, address: u16) -> u8;
     fn set_region(&mut self, address: u16, bytes: &[u8]) {
         for (offset, value) in bytes.iter().enumerate() {
             self.set(address + offset as u16, *value);
         }
     }
-    fn get_region(&self, address: u16, size: u16) -> Vec<u8> {
+    fn get_region(&mut self, address: u16, size: u16) -> Vec<u8> {
         let mut v = Vec::with_capacity(size as usize);
         for i in 0..size {
             v.push(self.get(i + address));
         }
         v
     }
-    fn get_short(&self, address: u16) -> u16 {
+    fn get_short(&mut self, address: u16) -> u16 {
         let low = self.get(address) as u16;
         let high = self.get(address + 1) as u16;
         high << 8 | low
@@ -446,7 +447,7 @@ impl Bus for NesRam {
             self.inner[mirror as usize] = value;
         }
     }
-    fn get(&self, address: u16) -> u8 {
+    fn get(&mut self, address: u16) -> u8 {
         if self.bounds_check(address) {
             self.inner[address as usize]
         } else {
@@ -491,7 +492,7 @@ impl Bus for Nes2a03Audio {
             );
         }
     }
-    fn get(&self, address: u16) -> u8 {
+    fn get(&mut self, address: u16) -> u8 {
         let offset = address.wrapping_sub(0x4000);
         // println!("check: {} vs {}", address, offset);
         if offset < 0x18 {
