@@ -274,7 +274,7 @@ pub fn lsr(nes: &mut Nes, addressing: u8, cycles: u8, _bytes: u8) -> u8 {
         } else {
             nes.cpu.registers.clear_carry();
         }
-        value >>= value;
+        value >>= 1;
         nes.cpu.set_flags_from(value);
         nes.set(address, value);
     }
